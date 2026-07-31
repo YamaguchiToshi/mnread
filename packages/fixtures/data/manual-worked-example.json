@@ -1,0 +1,223 @@
+{
+  "id": "manual-worked-example",
+  "authority": "official_worked_example",
+  "source": {
+    "title": "MNREAD-J, Jk チャートマニュアル",
+    "author": "小田浩一",
+    "version": "2002-05-18",
+    "locator": "図2（スコアシート, p.6）、図4（プロット, p.9）、§4.0〜§4.5（pp.8-9）",
+    "file": "oda.lab/MNREAD-J-JkMan020518.pdf"
+  },
+  "description": "原典唯一の完全な測定例。患者HK、31歳、両眼、15cm、白地に黒文字、MNREAD-J1-1。1.3 logMAR から開始し 0.5 logMAR で1文字も読めなくなった。",
+  "session": {
+    "variant": "MNREAD-J",
+    "chartVersion": "MNREAD-J1-1",
+    "viewingDistanceCm": 15,
+    "polarity": "black_on_white",
+    "eye": "both",
+    "sequenceDirection": "large_to_small"
+  },
+  "items": [
+    {
+      "chartLogMAR": 1.3,
+      "status": "read",
+      "timeSec": 4.45,
+      "errorCount": 0
+    },
+    {
+      "chartLogMAR": 1.2,
+      "status": "read",
+      "timeSec": 4.12,
+      "errorCount": 0
+    },
+    {
+      "chartLogMAR": 1.1,
+      "status": "read",
+      "timeSec": 4.56,
+      "errorCount": 0
+    },
+    {
+      "chartLogMAR": 1,
+      "status": "read",
+      "timeSec": 10.13,
+      "errorCount": 0
+    },
+    {
+      "chartLogMAR": 0.9,
+      "status": "read",
+      "timeSec": 9.12,
+      "errorCount": 0
+    },
+    {
+      "chartLogMAR": 0.8,
+      "status": "read",
+      "timeSec": 11.05,
+      "errorCount": 7
+    },
+    {
+      "chartLogMAR": 0.7,
+      "status": "read",
+      "timeSec": 19.43,
+      "errorCount": 23
+    },
+    {
+      "chartLogMAR": 0.6,
+      "status": "read",
+      "timeSec": 16.18,
+      "errorCount": 29
+    },
+    {
+      "chartLogMAR": 0.5,
+      "status": "attempted_unread",
+      "timeSec": null,
+      "errorCount": null
+    },
+    {
+      "chartLogMAR": 0.4,
+      "status": "unpresented_after_stop",
+      "timeSec": null,
+      "errorCount": null
+    },
+    {
+      "chartLogMAR": 0.3,
+      "status": "unpresented_after_stop",
+      "timeSec": null,
+      "errorCount": null
+    },
+    {
+      "chartLogMAR": 0.2,
+      "status": "unpresented_after_stop",
+      "timeSec": null,
+      "errorCount": null
+    },
+    {
+      "chartLogMAR": 0.1,
+      "status": "unpresented_after_stop",
+      "timeSec": null,
+      "errorCount": null
+    },
+    {
+      "chartLogMAR": 0,
+      "status": "unpresented_after_stop",
+      "timeSec": null,
+      "errorCount": null
+    },
+    {
+      "chartLogMAR": -0.1,
+      "status": "unpresented_after_stop",
+      "timeSec": null,
+      "errorCount": null
+    },
+    {
+      "chartLogMAR": -0.2,
+      "status": "unpresented_after_stop",
+      "timeSec": null,
+      "errorCount": null
+    },
+    {
+      "chartLogMAR": -0.3,
+      "status": "unpresented_after_stop",
+      "timeSec": null,
+      "errorCount": null
+    },
+    {
+      "chartLogMAR": -0.4,
+      "status": "unpresented_after_stop",
+      "timeSec": null,
+      "errorCount": null
+    },
+    {
+      "chartLogMAR": -0.5,
+      "status": "unpresented_after_stop",
+      "timeSec": null,
+      "errorCount": null
+    }
+  ],
+  "statedByManual": {
+    "comment": "原典が本文中に明示している値。実装のフル精度値がこれらの表示桁に丸めて一致することを検証する。",
+    "attemptedItemCount": 8,
+    "cumulativeErrors": 59,
+    "raChartLogMAR": 0.8,
+    "distanceCorrectionLogMAR": 0.3,
+    "raCorrectedLogMAR": 1.1,
+    "raDecimalAcuity": 0.08,
+    "cpsChartLogMAR": 1.1,
+    "cpsCorrectedLogMAR": 1.4,
+    "cpsCorrectedDecimalAcuity": 0.04,
+    "cpsChartMValue": 5,
+    "cpsCorrectedMValue": 10,
+    "mrsCpm": 411,
+    "mrsMeanTimeSec": 4.38,
+    "sourceQuotes": {
+      "ra": "読書視力 = 1.4 - ( 8 x 0.1 ) + ( 59 /300 ) = 1.4 - 0.8 + 0.2 = 0.8 logMAR",
+      "raCorrected": "0.8 + 0.3 で、ちょうど 1.1 logMAR になります",
+      "cps": "本当の臨界文字サイズは、1.1 に 0.3 を加えた 1.4 logMAR になります",
+      "mValue": "1.1 logMAR は、チャートに印刷されているように 5M になりますが、M 値に対する15cm の距離補正は表A から 2 倍なので、10M になります",
+      "mrs": "平均読書時間 = ( 4.45+4.12+4.56 ) ÷ 3 = 4.38 秒 / 最大読書速度 = 30 文字÷ 4.38 秒 x 60 秒 = 411（文字／分）",
+      "mrsZeroErrorCondition": "この患者は、1.1 logMAR と印刷されているところから、それよりも大きいサイズの文章では、読み間違いを1つもしていないので、最大読書速度は、次の式で求めることができます"
+    }
+  },
+  "expectedFullPrecision": {
+    "comment": "本仕様の式から算出したフル精度値。原典の表示値と丸めて一致することを別途検証する。ADR-0003 により内部では丸めない。",
+    "itemSpeedsCpm": [
+      {
+        "chartLogMAR": 1.3,
+        "speedCpm": 404.4943820224719
+      },
+      {
+        "chartLogMAR": 1.2,
+        "speedCpm": 436.8932038834951
+      },
+      {
+        "chartLogMAR": 1.1,
+        "speedCpm": 394.7368421052632
+      },
+      {
+        "chartLogMAR": 1,
+        "speedCpm": 177.69002961500493
+      },
+      {
+        "chartLogMAR": 0.9,
+        "speedCpm": 197.36842105263156
+      },
+      {
+        "chartLogMAR": 0.8,
+        "speedCpm": 124.8868778280543
+      },
+      {
+        "chartLogMAR": 0.7,
+        "speedCpm": 21.616057642820383
+      },
+      {
+        "chartLogMAR": 0.6,
+        "speedCpm": 3.708281829418998
+      },
+      {
+        "chartLogMAR": 0.5,
+        "speedCpm": 0
+      }
+    ],
+    "distanceCorrectionLogMAR": 0.3010299956639812,
+    "raChartLogMAR": 0.7966666666666665,
+    "raCorrectedLogMAR": 1.0976966623306477,
+    "raDecimalAcuity": 0.07985522499674758,
+    "cpsCorrectedLogMAR": 1.4010299956639813,
+    "cpsCorrectedMValue": 10.023744672545497,
+    "mrsArithmetic": 412.04147600374336,
+    "mrsPooled": 411.2718964204113,
+    "mrsLegacyMeanTime": 411.2718964204113,
+    "mrsSdCpm": 22.068273160034625,
+    "mrsN": 3,
+    "plateauChartLogMAR": [
+      1.3,
+      1.2,
+      1.1
+    ]
+  },
+  "notes": [
+    "N=8 は 0.5 logMAR の attempted_unread を含まない。SPEC §5.3.3 の不変性により、含めて N=9・E=89 としても RA は 0.7966666... で一致する。",
+    "mrsPooled と mrsLegacyMeanTime が一致するのは、プラトー内の全項目で誤り数が 0 であるため。誤りを含む場合は一致しない。",
+    "原典の図4は対数縦軸のため 0.5 logMAR の 0 cpm 点を描画できていない（ADR-0009 の根拠）。",
+    "原典は平均読書時間を 4.38 秒に丸めてから換算しているため 410.96 cpm となるが、いずれも表示上は 411 cpm。本仕様は丸めずに 411.2719 を保持する。"
+  ]
+}
