@@ -1,0 +1,503 @@
+/*
+ * 検査中に見る画面である。装飾より、行の状態が一瞥でわかることを優先する。
+ * 印刷用の @media print は A4 レポートを作る Phase 4 で足す。
+ */
+
+:root {
+  --bg: #ffffff;
+  --fg: #16181d;
+  --muted: #6b7280;
+  --line: #d5d9e0;
+  --accent: #1c4f8f;
+  --error: #b3261e;
+  --error-bg: #fdecea;
+  --warn: #8a5300;
+  --warn-bg: #fff6e5;
+  --touched-bg: #f2f6fb;
+  --focus-bg: #dde9f8;
+  font-family: system-ui, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+  font-size: 16px;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.app {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 12px 16px 48px;
+}
+
+.app-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 2px solid var(--line);
+  padding-bottom: 8px;
+}
+
+.app-header h1 {
+  font-size: 1.15rem;
+  margin: 0;
+}
+
+.app-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.app-actions button,
+.status-button {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.app-actions button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.paused-banner {
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  background: var(--warn-bg);
+  border-left: 4px solid var(--warn);
+  font-size: 0.9rem;
+}
+
+.app-body {
+  display: grid;
+  grid-template-columns: minmax(520px, 1fr) minmax(420px, 1fr);
+  gap: 24px;
+  align-items: start;
+  margin-top: 16px;
+}
+
+@media (max-width: 1100px) {
+  .app-body {
+    grid-template-columns: 1fr;
+  }
+}
+
+.column {
+  min-width: 0;
+}
+
+h2 {
+  font-size: 0.95rem;
+  margin: 20px 0 8px;
+}
+
+/* ---------- 検査条件 ---------- */
+
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px 12px;
+}
+
+.field-grid label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.78rem;
+  color: var(--muted);
+  gap: 2px;
+}
+
+.field-grid input,
+.field-grid select {
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 4px 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--fg);
+  background: #fff;
+}
+
+.no-name-note,
+.legend-note,
+.summary-caveat,
+.version-note {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin: 8px 0 0;
+}
+
+.inline-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  margin-top: 8px;
+}
+
+.notice {
+  margin: 8px 0 0;
+  padding: 6px 10px;
+  background: var(--warn-bg);
+  border-left: 3px solid var(--warn);
+  font-size: 0.82rem;
+}
+
+/* ---------- スコアシート ---------- */
+
+.score-sheet {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.score-sheet caption {
+  text-align: left;
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 20px 0 8px;
+}
+
+.score-sheet th,
+.score-sheet td {
+  border-bottom: 1px solid var(--line);
+  padding: 1px 6px;
+  font-size: 0.88rem;
+  text-align: left;
+}
+
+.score-sheet thead th {
+  font-size: 0.74rem;
+  color: var(--muted);
+  font-weight: 600;
+  border-bottom: 2px solid var(--line);
+  padding-bottom: 4px;
+}
+
+.score-sheet .num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.score-sheet .muted {
+  color: var(--muted);
+}
+
+.score-sheet .cpm {
+  font-weight: 600;
+}
+
+.row-touched {
+  background: var(--touched-bg);
+}
+
+.row-focused {
+  background: var(--focus-bg);
+}
+
+.row-error,
+.row-error.row-touched {
+  background: var(--error-bg);
+}
+
+.cell {
+  font: inherit;
+  font-size: 0.9rem;
+  width: 5.5rem;
+  padding: 3px 6px;
+  text-align: right;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-variant-numeric: tabular-nums;
+  background: #fff;
+}
+
+.cell-narrow {
+  width: 3.5rem;
+}
+
+.cell:disabled {
+  background: #f3f4f6;
+  color: transparent;
+  border-color: transparent;
+}
+
+.cell:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 0;
+}
+
+.cell[aria-invalid="true"] {
+  border-color: var(--error);
+  background: #fff;
+}
+
+.status-cell {
+  position: relative;
+}
+
+.status-menu {
+  position: absolute;
+  z-index: 10;
+  right: 0;
+  top: 100%;
+  min-width: 190px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 18%);
+  padding: 4px;
+}
+
+.status-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  font: inherit;
+  font-size: 0.82rem;
+  text-align: left;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.status-option:hover,
+.status-option[aria-selected="true"] {
+  background: var(--focus-bg);
+}
+
+.key-hint {
+  display: inline-block;
+  min-width: 1.3em;
+  text-align: center;
+  font-size: 0.72rem;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  color: var(--muted);
+}
+
+.row-errors {
+  margin: 0;
+  padding: 2px 0 4px 1.2em;
+  font-size: 0.76rem;
+  color: var(--error);
+}
+
+/* ---------- 曲線 ---------- */
+
+.curve {
+  margin: 0;
+}
+
+.curve-controls {
+  display: flex;
+  gap: 14px;
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.curve-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.axis-break {
+  stroke: var(--fg);
+  stroke-width: 1.5;
+}
+
+.curve svg {
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.curve figcaption {
+  font-size: 0.76rem;
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+.grid {
+  stroke: #eef0f3;
+  stroke-width: 1;
+}
+
+.axis {
+  stroke: var(--fg);
+  stroke-width: 1;
+}
+
+.tick {
+  font-size: 11px;
+  fill: var(--muted);
+}
+
+.axis-label {
+  font-size: 12px;
+  fill: var(--fg);
+}
+
+.curve-line {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.point {
+  fill: var(--accent);
+}
+
+.point-zero {
+  fill: var(--error);
+}
+
+.point-focused {
+  fill: var(--accent);
+  stroke: #fff;
+  stroke-width: 2;
+}
+
+/* ---------- 検証結果・要約 ---------- */
+
+.issue-list {
+  margin: 0;
+  padding-left: 1.2em;
+  font-size: 0.82rem;
+}
+
+.issues-error-title {
+  color: var(--error);
+}
+
+.issues-warn-title {
+  color: var(--warn);
+}
+
+.issue-list-error li {
+  color: var(--error);
+}
+
+.issue-list-warn li {
+  color: var(--warn);
+}
+
+.summary-list {
+  margin: 8px 0 0;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 14px;
+  font-size: 0.88rem;
+}
+
+.summary-list dt {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.summary-list dd {
+  margin: 0;
+}
+
+.method-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.method-list li {
+  margin-bottom: 3px;
+}
+
+.method-id {
+  display: inline-block;
+  min-width: 15em;
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+
+.detail {
+  display: block;
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+
+.detail.warn {
+  color: var(--warn);
+}
+
+.blocked-note {
+  font-size: 0.85rem;
+  color: var(--error);
+  background: var(--error-bg);
+  padding: 8px 10px;
+  border-radius: 4px;
+}
+
+.review-flag {
+  font-size: 0.8rem;
+  color: var(--warn);
+  background: var(--warn-bg);
+  padding: 6px 10px;
+  border-radius: 4px;
+}
+
+/* ---------- 凡例 ---------- */
+
+.legend-list {
+  margin: 0;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 3px 12px;
+  font-size: 0.8rem;
+}
+
+.legend-row {
+  display: contents;
+}
+
+.legend-list dd {
+  margin: 0;
+  color: var(--muted);
+}
+
+kbd {
+  font-family: ui-monospace, "SFMono-Regular", monospace;
+  font-size: 0.75rem;
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 1px 5px;
+  background: #fafbfc;
+  white-space: nowrap;
+}
+
+h3 {
+  font-size: 0.82rem;
+  margin: 14px 0 6px;
+}
+
+.legend-statuses {
+  margin: 0;
+  padding-left: 1.4em;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
