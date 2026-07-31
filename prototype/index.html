@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MNREAD-J / Jk 解析ツール（プロトタイプ）</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="app">
+
+  <header class="app-header no-print">
+    <h1>MNREAD-J / Jk Web解析ツール<span class="badge">プロトタイプ</span></h1>
+    <p class="sub">すべての計算はブラウザ内で完結します。データはサーバーへ送信されません。</p>
+  </header>
+
+  <main class="layout no-print">
+
+    <!-- ====== 基本設定 ====== -->
+    <section class="panel" id="panel-settings">
+      <h2>1. 基本設定</h2>
+      <div class="grid settings-grid">
+        <label>使用チャート
+          <select id="chartType">
+            <option value="J">MNREAD-J（漢字かな交じり文）</option>
+            <option value="Jk">MNREAD-Jk（ひらがな単語）</option>
+          </select>
+        </label>
+        <label>表示タイプ
+          <select id="polarity">
+            <option value="normal">白地に黒文字（通常）</option>
+            <option value="reversed">黒地に白文字（反転）</option>
+          </select>
+        </label>
+        <label>検査眼
+          <select id="eye">
+            <option value="both">両眼</option>
+            <option value="right">右眼</option>
+            <option value="left">左眼</option>
+          </select>
+        </label>
+        <label>測定距離 (cm)
+          <input type="number" id="distance" value="30" min="5" max="100" step="1">
+        </label>
+        <label>被験者ID
+          <input type="text" id="subjectId" placeholder="任意">
+        </label>
+        <label>年齢
+          <input type="number" id="subjectAge" placeholder="任意" min="0" max="120">
+        </label>
+        <label>性別
+          <select id="subjectSex">
+            <option value="">未選択</option>
+            <option value="M">男性</option>
+            <option value="F">女性</option>
+            <option value="U">その他/無回答</option>
+          </select>
+        </label>
+        <label>測定日
+          <input type="date" id="examDate">
+        </label>
+      </div>
+      <div class="btn-row">
+        <button id="btnSample" type="button">サンプルデータを読み込む</button>
+        <button id="btnReset" type="button" class="btn-secondary">全てリセット</button>
+      </div>
+    </section>
+
+    <!-- ====== スコアシート入力 ====== -->
+    <section class="panel" id="panel-scoresheet">
+      <h2>2. スコアシート入力</h2>
+      <p class="hint">
+        実際に読み始めた段から入力してください。それより大きい未入力段は自動的に「全問正解・標準時間」として扱われます（RA算出には算入、グラフには表示されません）。
+        読めなかった段は「不読」にチェックしてください。テンキー入力後は <kbd>Tab</kbd> で次項目に移動できます。
+      </p>
+      <div class="table-scroll">
+        <table id="scoreTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>サイズ (logMAR)</th>
+              <th>参考 (M / 小数)</th>
+              <th>読破時間 (秒)</th>
+              <th>エラー数</th>
+              <th>不読</th>
+              <th>速度 (cpm)</th>
+            </tr>
+          </thead>
+          <tbody id="scoreTableBody"><!-- rendered by JS --></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ====== 解析結果 ====== -->
+    <section class="panel" id="panel-results">
+      <h2>3. 解析結果</h2>
+      <div class="grid results-grid">
+        <div class="result-card">
+          <div class="result-label">読書視力 (RA)</div>
+          <div class="result-value" id="outRA">–</div>
+          <div class="result-sub" id="outRASub"></div>
+        </div>
+        <div class="result-card">
+          <div class="result-label">最大読書速度 (MRS)</div>
+          <div class="result-value" id="outMRS">–</div>
+          <div class="result-sub">自動検出値。グラフ上の横線をドラッグして手動調整可能</div>
+        </div>
+        <div class="result-card">
+          <div class="result-label">臨界文字サイズ (CPS)</div>
+          <div class="result-value" id="outCPS">–</div>
+          <div class="result-sub" id="outCPSSub">自動検出値。グラフ上の縦線をドラッグして手動調整可能</div>
+        </div>
+        <div class="result-card">
+          <div class="result-label">距離補正 (Δ logMAR)</div>
+          <div class="result-value" id="outDelta">–</div>
+          <div class="result-sub" id="outDeltaSub"></div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button id="btnResetOverride" type="button" class="btn-secondary">MRS/CPSを自動検出値に戻す</button>
+      </div>
+    </section>
+
+    <!-- ====== グラフ ====== -->
+    <section class="panel" id="panel-graph">
+      <h2>4. グラフ（文字サイズ × 読破時間 / 読書速度）</h2>
+      <p class="hint">緑の破線＝MRS（横方向にドラッグ）、青の破線＝CPS（縦方向にドラッグ）で手動修正できます。</p>
+      <div class="chart-wrap">
+        <canvas id="mainChart" height="420"></canvas>
+      </div>
+    </section>
+
+    <!-- ====== 電子カルテ用テキスト ====== -->
+    <section class="panel" id="panel-emr">
+      <h2>5. 電子カルテ用テキスト</h2>
+      <textarea id="emrText" rows="7" readonly></textarea>
+      <div class="btn-row">
+        <button id="btnCopy" type="button">クリップボードにコピー</button>
+        <span id="copyStatus" class="copy-status" aria-live="polite"></span>
+      </div>
+    </section>
+
+    <!-- ====== 患者説明レポート プレビュー ====== -->
+    <section class="panel" id="panel-report-preview">
+      <h2>6. 患者・家族向け説明レポート</h2>
+      <p class="hint">A4・1ページの印刷/PDF出力用レイアウトを下にプレビューします。「印刷/PDF出力」ボタンでブラウザの印刷機能からPDF保存できます。</p>
+      <div class="btn-row">
+        <button id="btnPrint" type="button">印刷 / PDF出力</button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ====== 印刷用レポート（画面では画面外に配置、印刷時のみ表示位置に戻る） ====== -->
+  <section id="printReport" class="print-only" aria-hidden="true">
+    <div class="report-page">
+      <header class="report-header">
+        <h1>MNREAD 読書能力評価レポート</h1>
+        <div class="report-meta" id="reportMeta"></div>
+      </header>
+
+      <div class="report-body">
+        <div class="report-chart">
+          <canvas id="reportChart" width="640" height="360"></canvas>
+        </div>
+
+        <div class="report-summary">
+          <table class="report-table">
+            <tbody>
+              <tr><th>読書視力 (RA)</th><td id="rpRA"></td></tr>
+              <tr><th>最大読書速度 (MRS)</th><td id="rpMRS"></td></tr>
+              <tr><th>臨界文字サイズ (CPS)</th><td id="rpCPS"></td></tr>
+            </tbody>
+          </table>
+
+          <div class="zone-legend">
+            <div class="zone-item"><span class="zone-dot zone-green"></span>快適に読めるサイズ（CPS以上）：読書・学習に最適</div>
+            <div class="zone-item"><span class="zone-dot zone-yellow"></span>努力すれば読めるサイズ（RA〜CPS）：短時間の確認・看板等</div>
+            <div class="zone-item"><span class="zone-dot zone-red"></span>読めないサイズ（RA未満）</div>
+          </div>
+
+          <div class="report-reco">
+            <div><strong>新聞や一般的な本を読むのに必要な倍率:</strong> <span id="rpMag"></span></div>
+            <div><strong>推奨されるタブレット/PCのフォントサイズ（目安）:</strong> <span id="rpFont"></span></div>
+          </div>
+
+          <div class="report-findings">
+            <strong>所見:</strong>
+            <p id="rpFindings"></p>
+          </div>
+        </div>
+      </div>
+
+      <footer class="report-footer">
+        本レポートはMNREAD-J/Jkチャートの測定結果に基づく参考情報です。詳細は担当医師・視能訓練士にご相談ください。
+      </footer>
+    </div>
+  </section>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

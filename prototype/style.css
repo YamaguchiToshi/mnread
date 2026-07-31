@@ -1,0 +1,230 @@
+:root {
+  --bg: #f5f7f9;
+  --panel-bg: #ffffff;
+  --border: #d8dee3;
+  --text: #1c2733;
+  --text-muted: #5b6b78;
+  --accent: #1a6fa0;
+  --accent-dark: #0f4c6b;
+  --green: #1e8a4c;
+  --yellow: #b8860b;
+  --red: #c0392b;
+  --radius: 8px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.app { max-width: 1080px; margin: 0 auto; padding: 24px 16px 64px; }
+
+.app-header h1 {
+  font-size: 1.5rem;
+  margin: 0 0 4px;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: var(--accent);
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.app-header .sub { color: var(--text-muted); margin: 0 0 20px; font-size: 0.9rem; }
+
+.layout { display: flex; flex-direction: column; gap: 20px; }
+
+.panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+}
+
+.panel h2 { font-size: 1.05rem; margin: 0 0 12px; color: var(--accent-dark); }
+
+.hint { font-size: 0.83rem; color: var(--text-muted); margin: 0 0 14px; }
+
+.grid { display: grid; gap: 12px; }
+
+.settings-grid { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+input, select, textarea, button {
+  font-family: inherit;
+  font-size: 0.95rem;
+}
+
+input, select {
+  padding: 7px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--text);
+}
+
+input:focus, select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.btn-row { display: flex; gap: 10px; align-items: center; margin-top: 14px; flex-wrap: wrap; }
+
+button {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+button:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
+
+button.btn-secondary {
+  background: #fff;
+  color: var(--accent-dark);
+  border-color: var(--border);
+}
+
+button.btn-secondary:hover { background: #eef2f5; }
+
+.copy-status { font-size: 0.82rem; color: var(--green); }
+
+/* ---- score table ---- */
+.table-scroll { overflow-x: auto; }
+
+table#scoreTable { border-collapse: collapse; width: 100%; min-width: 720px; }
+
+#scoreTable th, #scoreTable td {
+  border: 1px solid var(--border);
+  padding: 5px 8px;
+  text-align: center;
+  font-size: 0.85rem;
+}
+
+#scoreTable thead th { background: #eef3f6; color: var(--accent-dark); font-weight: 600; }
+
+#scoreTable tr.row-auto { color: var(--text-muted); background: #fbfbfb; }
+#scoreTable tr.row-unread td { background: #fdecea; }
+#scoreTable tr.row-active { background: #eaf5ff; }
+
+#scoreTable input[type="number"] { width: 70px; text-align: right; }
+#scoreTable input[type="checkbox"] { width: 16px; height: 16px; }
+
+.cpm-cell { font-variant-numeric: tabular-nums; }
+
+/* ---- results ---- */
+.results-grid { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+
+.result-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  background: #fafcfd;
+}
+
+.result-label { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 4px; }
+.result-value { font-size: 1.4rem; font-weight: 700; color: var(--accent-dark); }
+.result-sub { font-size: 0.72rem; color: var(--text-muted); margin-top: 4px; }
+
+/* ---- chart ---- */
+.chart-wrap { position: relative; width: 100%; }
+#mainChart { width: 100% !important; cursor: default; }
+
+/* ---- EMR text ---- */
+#emrText {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  resize: vertical;
+  background: #fafcfd;
+  color: var(--text);
+}
+
+/* ---- print report ----
+   Kept off-screen (not display:none) so it always has real layout
+   dimensions. A display:none container reports zero size, and a Chart.js
+   canvas measured at zero size renders blank -- including at print time,
+   since the print stylesheet only swaps positioning, it doesn't give the
+   canvas a chance to re-measure before the page is rasterized. */
+body { overflow-x: hidden; }
+
+.print-only {
+  position: absolute;
+  top: 0;
+  left: -10000px;
+}
+
+.report-page {
+  width: 190mm;
+  min-height: 270mm;
+  margin: 0 auto;
+  padding: 8mm;
+  font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+}
+
+@media print {
+  body * { visibility: hidden; }
+  .no-print { display: none !important; }
+  #printReport, #printReport * { visibility: visible; }
+  #printReport { position: absolute; top: 0; left: 0; width: 100%; }
+}
+
+.report-header h1 { font-size: 1.3rem; margin: 0 0 4px; color: var(--accent-dark); }
+.report-meta { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px; }
+
+.report-body { display: flex; gap: 16px; flex-wrap: wrap; }
+.report-chart { flex: 1 1 340px; }
+#reportChart { width: 100% !important; }
+.report-summary { flex: 1 1 260px; }
+
+.report-table { border-collapse: collapse; width: 100%; margin-bottom: 12px; }
+.report-table th, .report-table td {
+  border: 1px solid var(--border);
+  padding: 6px 8px;
+  font-size: 0.88rem;
+  text-align: left;
+}
+.report-table th { width: 45%; background: #f2f6f8; }
+
+.zone-legend { font-size: 0.78rem; margin-bottom: 12px; }
+.zone-item { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.zone-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; flex: none; }
+.zone-green { background: var(--green); }
+.zone-yellow { background: var(--yellow); }
+.zone-red { background: var(--red); }
+
+.report-reco { font-size: 0.85rem; margin-bottom: 12px; display: flex; flex-direction: column; gap: 4px; }
+.report-findings { font-size: 0.85rem; }
+.report-findings p { margin: 4px 0 0; }
+
+.report-footer { margin-top: 16px; font-size: 0.7rem; color: var(--text-muted); border-top: 1px solid var(--border); padding-top: 8px; }
+
+kbd {
+  background: #eef2f5;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 0.8em;
+}
