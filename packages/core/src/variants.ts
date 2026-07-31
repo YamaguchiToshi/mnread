@@ -95,6 +95,7 @@ export const DEFAULT_ANALYSIS_OPTIONS: AnalysisOptions = {
   mrsDisagreementThreshold: 0.05,
   cpsDisagreementThresholdLogMAR: 0.2,
   supportMarginLogMAR: 0.1,
+  overrideReason: null,
 } as const;
 
 /**

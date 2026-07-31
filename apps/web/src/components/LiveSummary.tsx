@@ -10,30 +10,11 @@
  *   - 数値はすべて core の返り値。桁を落とすのは表示直前だけ（ADR-0003 / SPEC §9）
  */
 
-import type { CpsMethodId, MrsMethodId } from "@mnread/core";
 import type { JSX } from "react";
 
 import { formatCpm, formatLogMAR, formatSignedLogMAR } from "../format.js";
+import { CPS_METHOD_LABEL, MRS_METHOD_LABEL, QUALITY_FLAG_LABEL } from "../labels.js";
 import type { SessionView } from "../session/derive.js";
-
-const CPS_METHOD_LABEL: Readonly<Record<CpsMethodId, string>> = {
-  manual_visual_2002: "目視判定（2002マニュアル）",
-  plateau_sdev_v1: "SDev法 v1（自動）",
-  expdecay_80: "指数減衰フィット 80%",
-  expdecay_90: "指数減衰フィット 90%",
-  expdecay_95: "指数減衰フィット 95%",
-};
-
-/**
- * MRS の3方式。原典の定義本文（§3.3）は算術平均、計算例（§4.4）は平均時間換算で、
- * 両者は一致しない。実装がどちらかを選ばず3つとも出す（ADR-0005）。
- * 測定例では 412 cpm（算術平均）と 411 cpm（平均時間換算）に分かれる。
- */
-const MRS_METHOD_LABEL: Readonly<Record<MrsMethodId, string>> = {
-  arithmetic: "プラトー内の算術平均（標準）",
-  pooled: "総正読文字数 ÷ 総時間",
-  legacy_mean_time: "平均時間からの換算（原典 §4.4 の計算例）",
-};
 
 export function LiveSummary({ view }: { readonly view: SessionView }): JSX.Element {
   if (!view.outcome.ok) {
@@ -133,9 +114,16 @@ export function LiveSummary({ view }: { readonly view: SessionView }): JSX.Eleme
       </dl>
 
       {result.requiresReview && (
-        <p className="review-flag" data-testid="review-flag">
-          目視確認が必要です：{result.qualityFlags.join(" / ")}
-        </p>
+        <div className="review-flag" data-testid="review-flag">
+          <p>目視確認が必要です。</p>
+          <ul>
+            {result.qualityFlags.map((flag) => (
+              <li key={flag} data-testid="quality-flag" data-flag={flag}>
+                {QUALITY_FLAG_LABEL[flag]}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       <p className="version-note">

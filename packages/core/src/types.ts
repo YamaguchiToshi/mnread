@@ -11,10 +11,10 @@
  */
 
 /** SPEC.md の版。解析結果に必ず含める。 */
-export const SPEC_VERSION = "0.3.0";
+export const SPEC_VERSION = "0.4.0";
 
 /** 算出結果が変わりうる変更で必ず上げる（SPEC §10）。 */
-export const ALGORITHM_VERSION = "0.2.0";
+export const ALGORITHM_VERSION = "0.3.0";
 
 /* ============================================================
    チャート種別
@@ -271,12 +271,19 @@ export interface PlateauSelection {
   readonly exclusionReasons: Readonly<Record<number, string>>;
 }
 
-/** 自動値を採用・上書きした操作の記録（SPEC §8.1）。 */
+/** 自動値を採用・上書きした操作の記録（SPEC §8.1、§8.4）。 */
 export interface SelectionRecord {
   readonly cpsMethod: CpsMethodId;
   readonly mrsMethod: MrsMethodId;
   /** 自動値を上書きした場合の理由。上書きしていなければ null */
   readonly overrideReason: string | null;
+  /**
+   * 検者の目視判定が、自動値（`plateau_sdev_v1`）と異なるプラトーを指しているか。
+   *
+   * 目視判定がない場合は false（上書きしていないため）。true でありながら
+   * `overrideReason` が空なら `OVERRIDE_REASON_MISSING` が立つ（SPEC §8.4）。
+   */
+  readonly overridesAutomatic: boolean;
 }
 
 /* ============================================================
@@ -318,6 +325,48 @@ export interface UnitConversion {
   readonly visualAngleArcmin: number;
 }
 
+/* ============================================================
+   判読ゾーン（SPEC §5.8、ADR-0013）
+   ============================================================ */
+
+export type ReadingZoneId =
+  /** RA 未満。読めない */
+  | "unreadable"
+  /** RA 以上 CPS 未満。読めるが最大読書速度に達しない */
+  | "effortful"
+  /** CPS 以上。最大読書速度で読める */
+  | "comfortable";
+
+/**
+ * 1つの帯。範囲は距離補正後 logMAR の半開区間 [min, max) で表す。
+ * `null` はその側に開いていることを意味する（0 ではない）。
+ */
+export interface ReadingZone {
+  readonly id: ReadingZoneId;
+  readonly minCorrectedLogMAR: number | null;
+  readonly maxCorrectedLogMAR: number | null;
+  /** 境界に対応する MNREAD-J 相当ポイント（測定距離基準）。開いている側は null */
+  readonly minPoint: number | null;
+  readonly maxPoint: number | null;
+  /** min >= max。RA > CPS の退化で「努力」が空になる場合に true（SPEC §5.8） */
+  readonly empty: boolean;
+}
+
+export interface ReadingZoneSet {
+  /** unreadable → effortful → comfortable の順 */
+  readonly zones: readonly ReadingZone[];
+  /** 境界に用いた CPS の算出法。値と方法IDを分離しない（ADR-0006） */
+  readonly cpsMethod: CpsMethodId;
+  readonly cpsCorrectedLogMAR: number;
+  readonly raCorrectedLogMAR: number;
+  /** RA が打ち切りで下限値である場合 true。不可ゾーンの境界も下限値になる */
+  readonly raCensored: boolean;
+  /** RA > CPS の退化。値は入れ替えず、事実として返す */
+  readonly raAboveCps: boolean;
+  /** ポイント換算に用いた距離（cm） */
+  readonly targetDistanceCm: number;
+}
+
 /** CPS 相当と支援余裕を分離して保持する（SPEC §5.7）。 */
 export interface SupportRange {
   /** CPS そのものに相当するポイント */
@@ -349,7 +398,11 @@ export type QualityFlag =
   /** CPS より大きい文字サイズの実測点がプラトーから外れている（外れ値・二重プラトー） */
   | "PLATEAU_GAP"
   /** 読書時間・速度が生理的範囲を外れている */
-  | "IMPLAUSIBLE_VALUE";
+  | "IMPLAUSIBLE_VALUE"
+  /** RA > CPS。判読ゾーンの「努力」が空になる退化（SPEC §5.8） */
+  | "RA_ABOVE_CPS"
+  /** 目視判定が自動値と異なるのに上書き理由が記録されていない（SPEC §8.4） */
+  | "OVERRIDE_REASON_MISSING";
 
 /* ============================================================
    解析の入出力
@@ -366,6 +419,11 @@ export interface AnalysisOptions {
   readonly cpsDisagreementThresholdLogMAR: number;
   /** 支援余裕（logMAR）。既定 0.1 */
   readonly supportMarginLogMAR: number;
+  /**
+   * 検者が自動値と異なる判定を採った理由（SPEC §8.4）。
+   * 目視判定が自動値と一致していれば無視される。
+   */
+  readonly overrideReason: string | null;
 }
 
 export interface AnalysisResult {
@@ -373,6 +431,15 @@ export interface AnalysisResult {
   readonly algorithmVersion: string;
   readonly variantSpec: VariantSpec;
   readonly input: SessionInput;
+
+  /**
+   * 検者の目視判定。`input` と同じく、結果を決めた入力をそのまま返す。
+   *
+   * CPS と MRS はこの集合の関数である（ADR-0012）。値だけを書き出すと、
+   * 後から「なぜその CPS になったか」を再現できない。書き出したファイルから
+   * 解析をやり直せることが、生データ書き出しの条件である（SPEC §8.2.3）。
+   */
+  readonly manualPlateau: PlateauSelection | null;
 
   readonly items: readonly ItemResult[];
   readonly readingAcuity: ReadingAcuityResult | null;
@@ -383,9 +450,18 @@ export interface AnalysisResult {
   readonly selection: SelectionRecord;
   readonly accessibility: AccessibilityResult;
 
+  /**
+   * セッション既定距離に対する距離補正値。全出力に含める（SPEC §8.1）。
+   * 行別距離を指定した行は `items[i].distanceCorrectionLogMAR` が優先する。
+   */
+  readonly distanceCorrectionLogMAR: number;
   /** 主値 CPS の換算。CPS が推定不能なら null */
   readonly cpsConversion: UnitConversion | null;
+  /** RA の換算。RA が算出できなければ null */
+  readonly raConversion: UnitConversion | null;
   readonly supportRange: SupportRange | null;
+  /** 判読3ゾーン（SPEC §5.8）。CPS か RA が欠ければ null */
+  readonly zones: ReadingZoneSet | null;
 
   readonly qualityFlags: readonly QualityFlag[];
   /** qualityFlags が空でなければ true */

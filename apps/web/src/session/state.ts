@@ -15,6 +15,7 @@ import {
   type Eye,
   type ItemInput,
   type ItemStatus,
+  type PlateauSelection,
   type Polarity,
   type SequenceDirection,
   type SessionInput,
@@ -110,6 +111,39 @@ export const STATUS_SHORT: Readonly<Record<ItemStatus, string>> = {
 };
 
 /* ============================================================
+   検者の判定（Phase 4）
+   ============================================================ */
+
+/**
+ * 目視判定の入力（ADR-0012）。
+ *
+ * **受け取るのはプラトー点の集合だけである。** CPS と MRS はここから導かれる
+ * 表示であり、独立に持たない。両者を別々に持てるようにすると、出力の CPS と
+ * MRS が別のプラトーを指す状態を作れてしまう。
+ *
+ * 添字は `rows` 上のもの（チャート順で固定）。core に渡す直前に items の添字へ
+ * 変換する。行の並びは実施順で変わるが、rows の添字は変わらないため、
+ * 実施順を後から切り替えても選択が壊れない。
+ */
+export interface JudgementDraft {
+  /** 選んだプラトー点。null = 検者はまだ判定していない（自動値のみ） */
+  readonly plateauRowIndices: readonly number[] | null;
+  /** 外れ値として除外した行。**点は消さず、除外として記録する**（ADR-0006） */
+  readonly excludedRowIndices: readonly number[];
+  /** 除外理由。キーは rows の添字 */
+  readonly exclusionReasons: Readonly<Record<number, string>>;
+  /** 自動値と異なる判定を採った理由（SPEC §8.4） */
+  readonly overrideReason: string;
+}
+
+export const EMPTY_JUDGEMENT: JudgementDraft = {
+  plateauRowIndices: null,
+  excludedRowIndices: [],
+  exclusionReasons: {},
+  overrideReason: "",
+};
+
+/* ============================================================
    セッション
    ============================================================ */
 
@@ -128,6 +162,8 @@ export interface SessionDraft {
   readonly perRowDistance: boolean;
   /** チャート順（大→小）で固定。表示順・items 順は sequenceDirection から導く */
   readonly rows: readonly RowDraft[];
+  /** 検者の目視判定（Phase 4） */
+  readonly judgement: JudgementDraft;
 }
 
 export function emptyRow(chartLogMAR: number): RowDraft {
@@ -162,6 +198,7 @@ export function createSession(variant: Variant = "MNREAD-J"): SessionDraft {
     testDate: "",
     perRowDistance: false,
     rows: chartLogMARLevels(VARIANT_SPECS[variant]).map(emptyRow),
+    judgement: EMPTY_JUDGEMENT,
   };
 }
 
@@ -267,8 +304,32 @@ export function toSessionInput(draft: SessionDraft): SessionInput {
   };
 }
 
+/**
+ * 検者の目視判定を core の入力形式へ変換する。
+ *
+ * 未判定なら null を返す。null のとき `estimateManual()` は推定不能を返し、
+ * 主値は暫定的に自動値になる（その事実は `selection.cpsMethod` に現れる）。
+ */
+export function toPlateauSelection(draft: SessionDraft): PlateauSelection | null {
+  const { plateauRowIndices, excludedRowIndices, exclusionReasons } = draft.judgement;
+  if (plateauRowIndices === null) return null;
+
+  const toItem = (rowIndex: number): number => rowIndexToItemIndex(draft, rowIndex);
+  const reasons: Record<number, string> = {};
+  for (const [rowIndex, reason] of Object.entries(exclusionReasons)) {
+    reasons[toItem(Number(rowIndex))] = reason;
+  }
+
+  return {
+    plateauItemIndices: plateauRowIndices.map(toItem),
+    excludedItemIndices: excludedRowIndices.map(toItem),
+    exclusionReasons: reasons,
+  };
+}
+
 /** 1行でも検者が触れているか。未保存の破棄を警告するかどうかの判定に使う。 */
 export function hasEnteredData(draft: SessionDraft): boolean {
+  if (draft.judgement.plateauRowIndices !== null) return true;
   return draft.rows.some(
     (r) => r.status !== "unpresented_after_stop" || r.note !== "" || r.distanceText !== "",
   );

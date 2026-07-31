@@ -16,6 +16,7 @@ export * from "./validation.js";
 export * from "./curve.js";
 export * from "./mrs.js";
 export * from "./accessibility.js";
+export * from "./zones.js";
 export * from "./quality.js";
 export * from "./analyze.js";
 export * from "./plateau/manual.js";

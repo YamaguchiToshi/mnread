@@ -73,6 +73,33 @@ export function estimateManual(
   };
 }
 
+/**
+ * CPS 境界の指定をプラトー集合に写す（ADR-0012）。
+ *
+ * 検者がグラフ上で CPS の線を動かす操作は、値を直接指定する操作ではなく
+ * 「どの実測サイズからプラトーとみなすか」を指す操作である。指定された段から
+ * **大文字側へ連続する**測定点を集める。欠測段に当たった時点で打ち切る
+ * （またげない切れ目であることに意味がある）。
+ *
+ * 返るのは items の添字。曲線に載らない点を指定した場合は空を返す。
+ */
+export function plateauFromBoundary(
+  curve: readonly CurvePoint[],
+  boundaryItemIndex: number,
+): readonly number[] {
+  const ordered = [...curve].sort((a, b) => a.levelIndex - b.levelIndex);
+  const position = ordered.findIndex((p) => p.itemIndex === boundaryItemIndex);
+  if (position < 0) return [];
+
+  const collected: number[] = [ordered[position]!.itemIndex];
+  for (let i = position - 1; i >= 0; i -= 1) {
+    // levelIndex は欠測段を含む通し番号。1 ずつ減っていない = 途中に欠測がある。
+    if (ordered[i]!.levelIndex !== ordered[i + 1]!.levelIndex - 1) break;
+    collected.push(ordered[i]!.itemIndex);
+  }
+  return collected.reverse();
+}
+
 function notEstimable(reason: string): ManualPlateauResult {
   return {
     estimate: {

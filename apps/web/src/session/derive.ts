@@ -7,12 +7,15 @@
 
 import {
   analyze,
+  buildCurve,
   correctedLogMAR,
   hasBlockingError,
+  plateauFromBoundary,
   readingSpeedCpm,
   validateSession,
   VARIANT_SPECS,
   type AnalysisOutcome,
+  type CurvePoint,
   type ItemStatus,
   type ValidationIssue,
   type VariantSpec,
@@ -21,6 +24,7 @@ import {
 import {
   entryOrder,
   parseField,
+  toPlateauSelection,
   toSessionInput,
   type RowDraft,
   type SessionDraft,
@@ -43,6 +47,11 @@ export interface RowView {
    * （ADR-0002。0 と欠測を混同しない）
    */
   readonly speedCpm: number | null;
+  /**
+   * 記録された読書時間。副グラフ（原典 図3）が用いる。
+   * 入力エラー中・状態が「読んだ」以外なら null。
+   */
+  readonly timeSec: number | null;
   readonly issues: readonly ValidationIssue[];
   readonly hasError: boolean;
   /** 検者が触れた行か。未提示のまま何も入っていなければ false */
@@ -59,6 +68,19 @@ export interface SessionView {
   readonly hasError: boolean;
   /** error がある間は ok:false。UI はそのとき値を一切表示しない */
   readonly outcome: AnalysisOutcome;
+  /** 曲線に載る点。入力エラー中は空 */
+  readonly curve: readonly CurvePoint[];
+  /** 自動法（plateau_sdev_v1）が選んだプラトーの rows 添字。推定不能なら空 */
+  readonly automaticPlateauRows: readonly number[];
+  /** 検者が選んだプラトーの rows 添字。未判定なら null */
+  readonly manualPlateauRows: readonly number[] | null;
+  /**
+   * 主値の算出に実際に使われたプラトーの rows 添字。
+   *
+   * グラフの強調はこれを使う。検者の選択そのものを描くと、除外した点が
+   * プラトーとして光ったままになり、画面と CPS・MRS の出どころが食い違う。
+   */
+  readonly selectedPlateauRows: readonly number[];
 }
 
 export function deriveSessionView(draft: SessionDraft): SessionView {
@@ -93,11 +115,30 @@ export function deriveSessionView(draft: SessionDraft): SessionView {
       chartLogMAR: row.chartLogMAR,
       correctedLogMAR: rowCorrectedLogMAR(row, sessionDistance, spec),
       speedCpm: rowSpeedCpm(row, spec, hasRowError),
+      timeSec: hasRowError || row.status !== "read" ? null : parseField(row.timeText),
       issues: rowIssues,
       hasError: hasRowError,
       touched: row.status !== "unpresented_after_stop",
     } satisfies RowView;
   });
+
+  const outcome = analyze(input, {
+    manualPlateau: toPlateauSelection(draft),
+    overrideReason:
+      draft.judgement.overrideReason === "" ? null : draft.judgement.overrideReason,
+  });
+
+  const curve = outcome.ok ? buildCurve(outcome.result.items) : [];
+  const toRowIndex = (itemIndex: number): number => order[itemIndex] ?? itemIndex;
+  const automatic = outcome.ok
+    ? (outcome.result.cps.find((e) => e.method === "plateau_sdev_v1") ?? null)
+    : null;
+  const selectedEstimate = outcome.ok
+    ? (outcome.result.cps.find((e) => e.method === outcome.result.selection.cpsMethod) ??
+      null)
+    : null;
+  const toRows = (indices: readonly number[]): readonly number[] =>
+    indices.map(toRowIndex).sort((a, b) => a - b);
 
   return {
     spec,
@@ -105,9 +146,57 @@ export function deriveSessionView(draft: SessionDraft): SessionView {
     sessionIssues,
     allIssues: issues,
     hasError: hasBlockingError(issues),
-    // 検者の目視判定は Phase 4。ここでは自動法のみが動く。
-    outcome: analyze(input, { manualPlateau: null }),
+    outcome,
+    curve,
+    automaticPlateauRows:
+      automatic?.estimable === true ? toRows(automatic.plateauItemIndices) : [],
+    manualPlateauRows: draft.judgement.plateauRowIndices,
+    selectedPlateauRows:
+      selectedEstimate?.estimable === true
+        ? toRows(selectedEstimate.plateauItemIndices)
+        : [],
   };
+}
+
+/* ============================================================
+   判定操作 — 「どの点を選ぶか」の決定
+   ============================================================ */
+
+/**
+ * プラトー点のクリック選択（ADR-0012）。
+ *
+ * 未判定の状態で最初の点を触ったときは、自動値を土台にする。白紙から19回
+ * クリックさせるのではなく、自動値を見て「ここだけ違う」と直す作業になるのが
+ * 実際の判定である。土台があることは自動値の採用を意味しないので、`seed` を
+ * 使った時点で `overridesAutomatic` は自動的に判定される（core 側）。
+ */
+export function togglePlateauRow(
+  view: SessionView,
+  rowIndex: number,
+): readonly number[] {
+  const current = view.manualPlateauRows ?? view.automaticPlateauRows;
+  return current.includes(rowIndex)
+    ? current.filter((r) => r !== rowIndex)
+    : [...current, rowIndex].sort((a, b) => a - b);
+}
+
+/**
+ * CPS 境界の移動をプラトー集合に写す（ADR-0012）。
+ *
+ * 検者は「CPS をこの値にする」のではなく「ここからプラトーとみなす」を指定して
+ * いる。連続区間の張り直しは core の `plateauFromBoundary()` が行う。
+ */
+export function plateauRowsFromBoundary(
+  view: SessionView,
+  boundaryRowIndex: number,
+): readonly number[] {
+  const row = view.rows[boundaryRowIndex];
+  if (row === undefined) return view.manualPlateauRows ?? [];
+  const order = view.rows.map((r) => r.itemIndex);
+  return plateauFromBoundary(view.curve, row.itemIndex)
+    .map((itemIndex) => order.indexOf(itemIndex))
+    .filter((r) => r >= 0)
+    .sort((a, b) => a - b);
 }
 
 /* ---------------------------------------------------------- */

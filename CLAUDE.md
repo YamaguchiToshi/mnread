@@ -14,7 +14,7 @@ Read these before changing anything that affects a computed value:
 
 - **`oda.lab/`** — the primary sources, as PDFs: the official 2002 Oda manual (`MNREAD-J-JkMan020518.pdf`) and the Oda lab Q&A (`odalab web resource center.pdf`). **These are the final authority on every formula.** Reading them requires poppler (`brew install poppler`); the Read tool renders pages visually, which is necessary because the formulae, tables, and the worked-example scoresheet are laid out graphically.
 - **`SPEC.md`** — the single source of truth for the implementation: formulae, item states, validation rules, output schema, rounding policy. Carries `SPEC_VERSION`. Every formula cites its manual/Q&A locator. **If the implementation disagrees with SPEC.md, SPEC.md is right** — change it first, deliberately, then the code. If SPEC.md disagrees with `oda.lab/`, the primary source is right.
-- **`docs/adr/`** — 11 decisions with their reasoning (ADR-0009 is superseded by ADR-0011). Consult these before "fixing" something that looks wrong; several apparent oddities are deliberate.
+- **`docs/adr/`** — 13 decisions with their reasoning (ADR-0009 is superseded by ADR-0011). Consult these before "fixing" something that looks wrong; several apparent oddities are deliberate.
 - **`PLAN.md`** — phased implementation and verification plan.
 - `deep-research-report-1.md` / `-2.md` — secondary research summaries (Japanese: computation; English: validation). Useful for the automated-CPS literature, which the primary sources don't cover. **Do not resolve a formula question from these** — go to `oda.lab/`. Their `citeturnNNviewN` markers are research-tool artifacts.
 
@@ -50,7 +50,9 @@ apps/web/            React + 自前SVGチャート。外部CDN依存なし
   src/session/state.ts     打った文字 → SessionInput。状態遷移のみ、算術なし
   src/session/derive.ts    core を呼ぶ唯一の場所。画面の数値はすべてここ経由
   src/format.ts            表示丸め（SPEC §9）。丸めてよいのはここだけ
-  src/components/          ScoreSheet（入力）・SpeedCurve（曲線）ほか
+  src/labels.ts            算出法IDの日本語表示名。対応表のみ、算術なし
+  src/components/          ScoreSheet（入力）・SpeedCurve（曲線）・JudgementPanel ほか
+  src/output/              電子カルテ文・A4レポート・JSON/CSV 書き出し
 ```
 
 `verify-transcription.mjs` deliberately does **not** import `@mnread/core` — it re-derives the reference formulae inline. If it imported core, an error in core could validate a matching transcription error. Keep it independent.
@@ -68,6 +70,9 @@ These come from the ADRs. Each one was a real defect in the earlier prototype.
 - **Never apply the distance correction to cpm.** It applies to RA, CPS, and the curve's x-axis only.
 - **Never carry an English MNREAD constant into a Japanese mode** (ADR-0001). Not 10 words, not 40 cm, not the 200 wpm ACC divisor.
 - **MRS emits three values, not one** (ADR-0005). The manual's text and its worked example disagree; the code must not silently pick a side. **This applies to the UI too** — showing only `primaryMrs()` picks the side that `core` deliberately refused to pick. On the manual's worked example the methods split 412 / 411 / 411 cpm, and the manual's own stated value is the 411.
+- **The judgment UI takes one input: the plateau point set** (ADR-0012). CPS and MRS are both functions of `P` (`CPS = min logMAR`, `MRS = mean speed`). A control that moves the CPS line independently of `P` lets you emit a CPS and an MRS that point at different plateaus, and nothing downstream can see the contradiction. The CPS drag is kept, but mapped onto "which measured size does the plateau start at" — it snaps and rebuilds `P` as a contiguous run. The MRS line gets no handle.
+- **The JSON export must round-trip.** It carries `input` *and* `manualPlateau` — CPS and MRS are functions of that selection, so an export without it cannot explain its own numbers, and re-analysis has to start from scratch. `apps/web/test/import.test.tsx` pins export → import → export as byte-identical; if you add a field that determines a result, it belongs in the export.
+- **The support margin is not a zone boundary** (ADR-0013). The 3 reading zones split at RA and CPS only. Between CPS and CPS+0.1 the patient really is reading at maximum speed; labelling that band "effortful" makes the handout disagree with the measurement. The margin belongs in the recommended-size range `[pt(CPS), pt(CPS+0.1)]`, in its own box.
 - **Never report a value from a model that doesn't fit.** `expdecay_*` returns `estimable: false` when the residual RMSE is too high — the exponential model genuinely cannot fit a sharp two-limb curve, and a CPS derived from a bad fit is noise with a number attached.
 - **Over-flagging is the safe direction.** The clinical primary is the ORT's visual judgment, so a spurious review request costs a glance at the graph; a silently wrong CPS reaches the medical record. The synthetic suite enforces zero "silent-wrong" across all 15 curve families — that criterion is more important than any accuracy percentage.
 
@@ -101,13 +106,15 @@ The one caveat worth knowing: the chart's printed M sizes are R10 preferred numb
 
 ## Phase status
 
-**Phases 0–3 are complete.** 397 tests pass (core 325 + web 72).
+**Phases 0–4 are complete.** 472 tests pass (core 344 + web 128).
 
-`packages/core` is finished for clinical purposes: reading speed, distance correction, item states, reading acuity, unit conversions, validation, the plateau / CPS / MRS layer, the accessibility index, and `analyze()`. Test detection power was confirmed by mutation testing — breaking a constant or a sign fails between 7 and 67 tests.
+`packages/core` is finished for clinical purposes: reading speed, distance correction, item states, reading acuity, unit conversions, validation, the plateau / CPS / MRS layer, the accessibility index, reading zones, and `analyze()`. Test detection power was confirmed by mutation testing — breaking a constant or a sign fails between 7 and 67 tests.
 
-`apps/web` currently has the **input screen only**: the 19-row score sheet with keypad-only entry, live cpm and curve, immediate validation, undo, and reverse-order support.
+`apps/web` has all three screens: **入力** (19-row score sheet, keypad-only, live cpm and curve), **判定** (plateau selection on the curve, CPS boundary drag, exclusions with reasons, override reason, the manual's log-time secondary plot), **出力** (EMR text, A4 patient report, JSON/CSV export + JSON import for re-analysis).
 
-**Phase 4 is next**: the judgment UI and the three outputs. Plateau point selection by click, CPS/MRS drag adjustment with the override reason recorded for audit, the manual's log-time secondary plot, then EMR text / A4 patient report / JSON-CSV export. `SpeedCurve` is deliberately read-only today; the interaction goes there.
+**Phase 5 is next**: validation against real records. 20–30 past cases against hand calculation or MNJA, double-entry by two ORTs, calibration of the thresholds that are currently provisional (OPEN-2, OPEN-4, OPEN-6, OPEN-7), and **clinician review of everything patient-facing** — the zone wording, the A4 report's Japanese, the EMR template. The acceptance bar is that *every* discrepancy is explained, not that a percentage is met.
+
+> Three UI defects in Phase 4 only appeared when the app was driven in a real browser — an SVG hit-test order problem, labels running off the plot, and the A4 report breaking across two pages. jsdom renders but does not lay out or hit-test. **For anything involving SVG geometry or print CSS, drive the real thing.**
 
 When adding to `core`, follow the existing shape: a low-level function throws `RangeError` on a precondition violation (that's a bug — validation should have run first), while `validateSession()` returns `ValidationIssue[]` for anything a user could type.
 

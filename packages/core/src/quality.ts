@@ -14,6 +14,8 @@ import type {
   MrsResult,
   QualityFlag,
   ReadingAcuityResult,
+  ReadingZoneSet,
+  SelectionRecord,
 } from "./types.js";
 
 /** 1点の除外で CPS がこれ以上動いたら影響が大きいとみなす（logMAR）。 */
@@ -28,6 +30,10 @@ export interface QualityInput {
   readonly selected: CpsEstimate | null;
   readonly mrs: readonly MrsResult[];
   readonly readingAcuity: ReadingAcuityResult | null;
+  /** 判読ゾーン（SPEC §5.8）。CPS が推定不能なら null */
+  readonly zones: ReadingZoneSet | null;
+  /** 判定の由来（SPEC §8.4） */
+  readonly selection: SelectionRecord;
   readonly hasLargeUnreadable: boolean;
   /** `WARN_IMPLAUSIBLE_SPEED` が1件でも出ているか */
   readonly hasImplausibleValue: boolean;
@@ -112,6 +118,19 @@ export function computeQualityFlags(input: QualityInput): readonly QualityFlag[]
   if (hasPlateauGap(curve, selected)) flags.add("PLATEAU_GAP");
 
   if (input.hasImplausibleValue) flags.add("IMPLAUSIBLE_VALUE");
+
+  // RA > CPS の退化（SPEC §5.8）。判読ゾーンの「努力」が空になる。
+  // 値は入れ替えないので、事実として検者に見せるほかない。
+  if (input.zones?.raAboveCps === true) flags.add("RA_ABOVE_CPS");
+
+  // 監査の穴（SPEC §8.4）。理由なしの上書きは、後から妥当性を検討できない。
+  if (
+    input.selection.overridesAutomatic &&
+    (input.selection.overrideReason === null ||
+      input.selection.overrideReason.trim() === "")
+  ) {
+    flags.add("OVERRIDE_REASON_MISSING");
+  }
 
   return [...flags];
 }

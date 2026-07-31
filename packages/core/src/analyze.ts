@@ -9,6 +9,7 @@ import { computeAccessibility } from "./accessibility.js";
 import { computeReadingAcuity } from "./acuity.js";
 import { supportRange, unitConversion } from "./convert.js";
 import { buildCurve, type CurvePoint } from "./curve.js";
+import { distanceCorrectionLogMAR } from "./distance.js";
 import { resolveItems } from "./items.js";
 import { computeMrs } from "./mrs.js";
 import { estimateExpDecay } from "./plateau/expdecay.js";
@@ -21,11 +22,13 @@ import type {
   AnalysisResult,
   CpsEstimate,
   CpsMethodId,
+  SelectionRecord,
   SessionInput,
 } from "./types.js";
 import { ALGORITHM_VERSION, SPEC_VERSION } from "./types.js";
 import { hasBlockingError, validateSession } from "./validation.js";
 import { DEFAULT_ANALYSIS_OPTIONS, VARIANT_SPECS } from "./variants.js";
+import { readingZones } from "./zones.js";
 
 /**
  * 主値として選ぶ順序。
@@ -101,10 +104,17 @@ export function analyze(
   const cpsLogMAR = selected?.estimable === true ? selected.cpsCorrectedLogMAR : null;
   const cpsConversion =
     cpsLogMAR === null ? null : unitConversion(cpsLogMAR, input.viewingDistanceCm);
+  const raConversion =
+    readingAcuity === null
+      ? null
+      : unitConversion(readingAcuity.raCorrectedLogMAR, input.viewingDistanceCm);
   const support =
     cpsLogMAR === null
       ? null
       : supportRange(cpsLogMAR, options.supportMarginLogMAR, input.viewingDistanceCm);
+
+  const zones = readingZones(readingAcuity, selected, input.viewingDistanceCm);
+  const selection = buildSelectionRecord(estimates, selected, options);
 
   const qualityFlags = computeQualityFlags({
     curve,
@@ -112,6 +122,8 @@ export function analyze(
     selected,
     mrs,
     readingAcuity,
+    zones,
+    selection,
     hasLargeUnreadable: items.some((i) => i.status === "skipped_large_unreadable"),
     hasImplausibleValue: issues.some((i) => i.code === "WARN_IMPLAUSIBLE_SPEED"),
     options,
@@ -122,18 +134,21 @@ export function analyze(
     algorithmVersion: ALGORITHM_VERSION,
     variantSpec: spec,
     input,
+    manualPlateau: options.manualPlateau,
     items,
     readingAcuity,
     mrs,
     cps: estimates,
-    selection: {
-      cpsMethod: selected?.method ?? "manual_visual_2002",
-      mrsMethod: "arithmetic",
-      overrideReason: null,
-    },
+    selection,
     accessibility,
+    distanceCorrectionLogMAR: distanceCorrectionLogMAR(
+      input.viewingDistanceCm,
+      spec.standardDistanceCm,
+    ),
     cpsConversion,
+    raConversion,
     supportRange: support,
+    zones,
     qualityFlags,
     requiresReview: qualityFlags.length > 0,
     warnings: issues.filter((i) => i.severity === "warning"),
@@ -148,4 +163,42 @@ function pickSelected(estimates: readonly CpsEstimate[]): CpsEstimate | null {
     if (found !== undefined) return found;
   }
   return estimates[0] ?? null;
+}
+
+/**
+ * 判定の由来を記録する（SPEC §8.4）。
+ *
+ * 「上書き」とは、検者の目視判定が自動値（`plateau_sdev_v1`）と**異なるプラトーを
+ * 指している**ことを言う。CPS の値が一致していてもプラトーの構成が違えば MRS が
+ * 変わるため、比較は値ではなく点の集合で行う。
+ *
+ * 目視判定がない場合は上書きではない（検者はまだ何も覆していない）。自動値しか
+ * ない状態であることは `cpsMethod` に現れる。
+ */
+function buildSelectionRecord(
+  estimates: readonly CpsEstimate[],
+  selected: CpsEstimate | null,
+  options: AnalysisOptions,
+): SelectionRecord {
+  const manual = estimates.find((e) => e.method === "manual_visual_2002");
+  const auto = estimates.find((e) => e.method === "plateau_sdev_v1");
+
+  const overridesAutomatic =
+    manual?.estimable === true &&
+    (auto?.estimable !== true ||
+      !sameIndices(manual.plateauItemIndices, auto.plateauItemIndices));
+
+  return {
+    cpsMethod: selected?.method ?? "manual_visual_2002",
+    mrsMethod: "arithmetic",
+    overrideReason: overridesAutomatic ? options.overrideReason : null,
+    overridesAutomatic,
+  };
+}
+
+function sameIndices(a: readonly number[], b: readonly number[]): boolean {
+  if (a.length !== b.length) return false;
+  const sortedA = [...a].sort((x, y) => x - y);
+  const sortedB = [...b].sort((x, y) => x - y);
+  return sortedA.every((v, i) => v === sortedB[i]);
 }

@@ -16,6 +16,7 @@ import {
   itemIndexToRowIndex,
   normalizeRow,
   parseField,
+  toPlateauSelection,
   toSessionInput,
 } from "../src/session/state.js";
 
@@ -228,5 +229,88 @@ describe("チャート種別の変更", () => {
     ]);
     expect(state.present.rows[0]!.errorText).toBe("28");
     expect(toSessionInput(state.present).items[0]!.errorCount).toBe(28);
+  });
+});
+
+/* ============================================================
+   判定（Phase 4）
+   ============================================================ */
+
+describe("判定の状態（ADR-0012）", () => {
+  it("未判定で始まり、選択されるまで null のままである", () => {
+    expect(createSession().judgement.plateauRowIndices).toBeNull();
+    expect(toPlateauSelection(createSession())).toBeNull();
+  });
+
+  it("選択順が違っても同じ状態になる（並びを正規化する）", () => {
+    const a = run([{ type: "setPlateau", rows: [2, 0, 1] }]);
+    const b = run([{ type: "setPlateau", rows: [0, 1, 2] }]);
+    expect(a.present.judgement.plateauRowIndices).toEqual([0, 1, 2]);
+    expect(a.present.judgement).toEqual(b.present.judgement);
+  });
+
+  it("rows の添字で保持するので、実施順を切り替えても選択が壊れない", () => {
+    const state = run([
+      { type: "setPlateau", rows: [0, 1, 2] },
+      { type: "setSequenceDirection", direction: "small_to_large" },
+    ]);
+    expect(state.present.judgement.plateauRowIndices).toEqual([0, 1, 2]);
+
+    // core へ渡す時点で items の添字に変換される。小→大では並びが反転する
+    const selection = toPlateauSelection(state.present)!;
+    expect(selection.plateauItemIndices).toEqual([18, 17, 16]);
+  });
+
+  it("除外は理由とともに記録し、外すと理由も消える", () => {
+    const excluded = run([{ type: "setExclusion", row: 3, reason: "読み直しあり" }]);
+    expect(excluded.present.judgement.excludedRowIndices).toEqual([3]);
+    expect(excluded.present.judgement.exclusionReasons[3]).toBe("読み直しあり");
+
+    const cleared = reduce(excluded, { type: "clearExclusion", row: 3 });
+    expect(cleared.present.judgement.excludedRowIndices).toEqual([]);
+    expect(cleared.present.judgement.exclusionReasons[3]).toBeUndefined();
+  });
+
+  it("同じ行を2回除外しても重複しない", () => {
+    const state = run([
+      { type: "setExclusion", row: 3, reason: "あ" },
+      { type: "setExclusion", row: 3, reason: "あい" },
+    ]);
+    expect(state.present.judgement.excludedRowIndices).toEqual([3]);
+    expect(state.present.judgement.exclusionReasons[3]).toBe("あい");
+  });
+
+  it("判定も Undo の対象になる", () => {
+    const state = run([
+      { type: "setPlateau", rows: [0, 1, 2] },
+      { type: "setPlateau", rows: [0, 1] },
+    ]);
+    const undone = reduce(state, { type: "undo" });
+    expect(undone.present.judgement.plateauRowIndices).toEqual([0, 1, 2]);
+  });
+
+  it("上書き理由の連続入力は1段の Undo にまとめる", () => {
+    const state = run([
+      { type: "setOverrideReason", text: "読" },
+      { type: "setOverrideReason", text: "読み" },
+      { type: "setOverrideReason", text: "読み直し" },
+    ]);
+    expect(state.past).toHaveLength(1);
+    expect(reduce(state, { type: "undo" }).present.judgement.overrideReason).toBe("");
+  });
+
+  it("判定だけしてあれば「触れた」とみなす（破棄の確認が要る）", () => {
+    const state = run([{ type: "setPlateau", rows: [0, 1] }]);
+    expect(hasEnteredData(state.present)).toBe(true);
+  });
+
+  it("新しい検査で判定も消える", () => {
+    const state = run([
+      { type: "setPlateau", rows: [0, 1] },
+      { type: "setOverrideReason", text: "理由" },
+      { type: "resetSession" },
+    ]);
+    expect(state.present.judgement.plateauRowIndices).toBeNull();
+    expect(state.present.judgement.overrideReason).toBe("");
   });
 });

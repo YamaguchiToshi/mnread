@@ -32,6 +32,23 @@ export type Action =
   | { readonly type: "setEye"; readonly eye: Eye }
   | { readonly type: "setSequenceDirection"; readonly direction: SequenceDirection }
   | { readonly type: "togglePerRowDistance" }
+  /**
+   * 検者が選んだプラトー（rows の添字）。null に戻すと未判定へ。
+   *
+   * 「どの点を選ぶか」の決定は `session/derive.ts` が core を呼んで行い、
+   * ここには結果の集合だけが届く。CPS・MRS を受け取る操作は設けない（ADR-0012）。
+   */
+  | { readonly type: "setPlateau"; readonly rows: readonly number[] | null }
+  | { readonly type: "setExclusion"; readonly row: number; readonly reason: string }
+  | { readonly type: "clearExclusion"; readonly row: number }
+  | { readonly type: "setOverrideReason"; readonly text: string }
+  /**
+   * 書き出したファイルから復元する（SPEC §8.2.3）。
+   *
+   * 履歴に載せるので、読み込み直後の Undo で元の入力へ戻れる。誤って読み込んで
+   * 入力中の検査を失う事故を、確認ダイアログだけに頼らない。
+   */
+  | { readonly type: "loadSession"; readonly draft: SessionDraft }
   | { readonly type: "resetSession" }
   | { readonly type: "undo" }
   | { readonly type: "redo" };
@@ -77,6 +94,10 @@ function coalesceKey(action: Action): string | null {
       return "sex";
     case "setTestDate":
       return "testDate";
+    case "setOverrideReason":
+      return "overrideReason";
+    case "setExclusion":
+      return `exclusion:${action.row}`;
     default:
       return null;
   }
@@ -202,6 +223,53 @@ function applyToDraft(draft: SessionDraft, action: Action): SessionDraft {
         : { ...draft, sequenceDirection: action.direction };
     case "togglePerRowDistance":
       return { ...draft, perRowDistance: !draft.perRowDistance };
+
+    case "setPlateau": {
+      // 並びを正規化しておく。同じ集合が選択順の違いで別の状態にならないようにする。
+      const rows = action.rows === null ? null : [...action.rows].sort((a, b) => a - b);
+      return { ...draft, judgement: { ...draft.judgement, plateauRowIndices: rows } };
+    }
+
+    case "setExclusion": {
+      const excluded = draft.judgement.excludedRowIndices.includes(action.row)
+        ? draft.judgement.excludedRowIndices
+        : [...draft.judgement.excludedRowIndices, action.row].sort((a, b) => a - b);
+      return {
+        ...draft,
+        judgement: {
+          ...draft.judgement,
+          excludedRowIndices: excluded,
+          exclusionReasons: {
+            ...draft.judgement.exclusionReasons,
+            [action.row]: action.reason,
+          },
+        },
+      };
+    }
+
+    case "clearExclusion": {
+      const { [action.row]: _removed, ...reasons } = draft.judgement.exclusionReasons;
+      return {
+        ...draft,
+        judgement: {
+          ...draft.judgement,
+          excludedRowIndices: draft.judgement.excludedRowIndices.filter(
+            (r) => r !== action.row,
+          ),
+          exclusionReasons: reasons,
+        },
+      };
+    }
+
+    case "setOverrideReason":
+      return {
+        ...draft,
+        judgement: { ...draft.judgement, overrideReason: action.text },
+      };
+
+    case "loadSession":
+      return action.draft;
+
     case "resetSession":
       return createSession(draft.variant);
 

@@ -155,7 +155,10 @@ describe("0 cpm と欠測の描き分け（ADR-0002 / ADR-0011）", () => {
     await user.keyboard("/6"); // 大文字側が読めない
 
     expect(Number(pointFor(0)!.getAttribute("data-cpm"))).toBe(0);
-    expect(screen.getByTestId("review-flag")).toHaveTextContent("LARGE_PRINT_FALLOFF");
+    // フラグは日本語で説明するが、識別子は data 属性で追える形にしてある。
+    expect(
+      screen.getByTestId("review-flag").querySelector('[data-flag="LARGE_PRINT_FALLOFF"]'),
+    ).not.toBeNull();
   });
 });
 

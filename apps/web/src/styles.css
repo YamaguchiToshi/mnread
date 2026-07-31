@@ -1,6 +1,6 @@
 /*
  * 検査中に見る画面である。装飾より、行の状態が一瞥でわかることを優先する。
- * 印刷用の @media print は A4 レポートを作る Phase 4 で足す。
+ * 末尾に A4 レポート用の @media print がある。
  */
 
 :root {
@@ -500,4 +500,492 @@ h3 {
   padding-left: 1.4em;
   font-size: 0.8rem;
   color: var(--muted);
+}
+
+/* ============================================================
+   画面の切り替え（入力 / 判定 / 出力）
+   ============================================================ */
+
+.app-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 10px 0 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.tab {
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 6px 18px;
+  border: 1px solid var(--line);
+  border-bottom: none;
+  border-radius: 5px 5px 0 0;
+  background: #f4f6f9;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.tab-active {
+  background: #fff;
+  color: var(--fg);
+  font-weight: 600;
+  box-shadow: inset 0 3px 0 var(--accent);
+}
+
+.app-body-single {
+  display: block;
+}
+
+/* ============================================================
+   判定
+   ============================================================ */
+
+/* 判定線は算出結果である。測定点より前面には出すが、点を隠さない太さに留める */
+.cps-line {
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+}
+
+.mrs-line {
+  stroke: #1f7a4d;
+  stroke-width: 2;
+  stroke-dasharray: 2 3;
+}
+
+.overlay-label {
+  font-size: 11px;
+  fill: var(--accent);
+}
+
+.cps-region {
+  fill: rgba(28, 79, 143, 0.06);
+}
+
+/* 自動値の暫定表示は、検者の判定と見分けがつくよう薄くする */
+.cps-region-auto {
+  fill: rgba(107, 114, 128, 0.05);
+}
+
+.cps-handle {
+  fill: transparent;
+  cursor: ew-resize;
+}
+
+.cps-handle:focus-visible {
+  fill: rgba(28, 79, 143, 0.12);
+  outline: 2px solid var(--accent);
+}
+
+/*
+ * 採用/不採用は「塗りの有無」で分ける。
+ *
+ * 大きさの差だけだと、どの点を選んでいるのかがひと目で読めない。塗りつぶしと
+ * 白抜きの対比は、白黒印刷でも色覚特性があっても残る。
+ */
+.point-plateau {
+  fill: var(--accent);
+  stroke: #fff;
+  stroke-width: 2;
+}
+
+.point-outside {
+  fill: #fff;
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.point-outside.point-zero {
+  fill: #fff;
+  stroke: var(--error);
+}
+
+/* 除外した点は消さない。除外であることが見えるように描く（ADR-0006） */
+.point-excluded,
+.point-outside.point-excluded {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 2;
+  stroke-dasharray: 2 2;
+}
+
+.curve-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+
+.curve-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* `.curve svg`（枠線つき・全幅）より詳細度を高くしないと凡例の印が枠で囲まれる */
+.curve .legend-swatch {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border: none;
+  border-radius: 0;
+  background: none;
+}
+
+.import-error,
+.import-warn {
+  flex-basis: 100%;
+  margin: 6px 0 0;
+  padding: 6px 10px;
+  font-size: 0.82rem;
+  background: var(--warn-bg);
+  border-left: 3px solid var(--warn);
+}
+
+.import-error {
+  background: var(--error-bg);
+  border-left-color: var(--error);
+  color: var(--error);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+[data-interactive="true"] .point {
+  cursor: pointer;
+}
+
+.curve-secondary svg {
+  max-height: 220px;
+}
+
+.curve-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.judgement h3 {
+  margin-top: 16px;
+}
+
+.judgement-state {
+  font-size: 0.85rem;
+  padding: 8px 10px;
+  background: var(--touched-bg);
+  border-left: 3px solid var(--accent);
+}
+
+.judgement-state[data-judged="false"] {
+  background: var(--warn-bg);
+  border-left-color: var(--warn);
+}
+
+.judgement-actions,
+.output-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 8px 0;
+}
+
+.judgement-actions button,
+.output-actions button {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 5px 12px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.judgement-actions button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.7rem;
+}
+
+.override-reason {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.override-reason textarea,
+.emr-text {
+  display: block;
+  width: 100%;
+  font: inherit;
+  font-size: 0.82rem;
+  margin-top: 4px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.emr-text {
+  font-family: ui-monospace, "SFMono-Regular", monospace;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.exclusions {
+  margin-top: 16px;
+  font-size: 0.85rem;
+}
+
+.exclusion-list {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+}
+
+.exclusion-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.exclusion-reason {
+  font: inherit;
+  font-size: 0.8rem;
+  flex: 1 1 200px;
+  padding: 2px 6px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+}
+
+/* ============================================================
+   出力
+   ============================================================ */
+
+.output-block {
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.output-block h3 {
+  margin-top: 0;
+}
+
+/* ============================================================
+   A4 レポート
+   ============================================================ */
+
+.report {
+  max-width: 190mm;
+  margin: 12px 0;
+  padding: 14mm 12mm;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
+.report h1 {
+  font-size: 1.4rem;
+  margin: 0 0 4px;
+}
+
+.report h2 {
+  font-size: 1rem;
+  margin: 0 0 6px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--line);
+}
+
+.report-section {
+  margin-top: 18px;
+}
+
+.report-meta {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.report-noname {
+  margin: 4px 0 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.zone-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.zone-table th,
+.zone-table td {
+  border: 1px solid var(--line);
+  padding: 6px 8px;
+  text-align: left;
+}
+
+.zone-table thead th {
+  background: #f4f6f9;
+  font-size: 0.82rem;
+}
+
+/* 3帯は色ではなく左端の太さでも区別できるようにする（白黒印刷・色覚特性） */
+.zone-unreadable th[scope="row"] {
+  border-left: 6px solid #9aa1ac;
+}
+
+.zone-effortful th[scope="row"] {
+  border-left: 6px solid var(--warn);
+}
+
+.zone-comfortable th[scope="row"] {
+  border-left: 6px solid #1f7a4d;
+}
+
+.zone-row[data-empty="true"] {
+  color: var(--muted);
+}
+
+.support-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 14px;
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.support-list dt {
+  color: var(--muted);
+}
+
+.support-list dd {
+  margin: 0;
+}
+
+.support-list strong {
+  font-size: 1.15rem;
+}
+
+.support-list .detail {
+  display: block;
+}
+
+.report-note {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.report-warn {
+  font-size: 0.85rem;
+  padding: 6px 10px;
+  background: var(--warn-bg);
+  border-left: 4px solid var(--warn);
+}
+
+.report-footer {
+  margin-top: 18px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.report-footer p {
+  margin: 3px 0;
+}
+
+/* ============================================================
+   印刷（SPEC §8.2.2）
+
+   window.print() と @media print で出す。SVG がベクタのまま印刷されるため、
+   html2canvas のようなラスタ化を挟まない（PLAN §2）。
+   ============================================================ */
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .app {
+    max-width: none;
+    padding: 0;
+  }
+
+  .report {
+    max-width: none;
+    margin: 0;
+    /* 罫線を紙の端に置くと 1px が刷り落ちる。わずかに内側へ寄せる */
+    padding: 0 1mm;
+    border: none;
+  }
+
+  .output-block {
+    margin: 0;
+    padding: 0;
+    border: none;
+  }
+
+  /* 判読ゾーンの表と図は分割しない。境界が別ページに落ちると読み違える */
+  .zone-table,
+  .report-figure,
+  .support-list {
+    break-inside: avoid;
+  }
+
+  /*
+   * 図の幅を抑えて A4 1枚に収める。
+   *
+   * 画面と同じ全幅（約186mm）にすると図だけで116mm を占め、`break-inside: avoid`
+   * と相まって図が丸ごと2ページ目へ送られる。患者に渡す紙が2枚になり、しかも
+   * 1枚目の下半分が空く。曲線の形が読めれば足りるので、幅を詰めるのが正しい。
+   */
+  .report-figure svg {
+    display: block;
+    max-width: 132mm;
+    margin: 0 auto;
+    height: auto;
+  }
+
+  .report-section {
+    margin-top: 10px;
+  }
+
+  /* 注意書きだけが2枚目に落ちるのを防ぐ。参考値である旨は図と同じ紙にある必要がある */
+  .report-footer {
+    break-inside: avoid;
+    margin-top: 10px;
+  }
+
+  .curve svg {
+    width: 100%;
+    height: auto;
+  }
 }
