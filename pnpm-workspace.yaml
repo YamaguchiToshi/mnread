@@ -1,0 +1,6 @@
+packages:
+  - "packages/*"
+  - "apps/*"
+# Vitest が依存する esbuild のネイティブバイナリ取得に必要。
+allowBuilds:
+  esbuild: true

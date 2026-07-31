@@ -1,0 +1,22 @@
+{
+  "name": "@mnread/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@mnread/fixtures": "workspace:*",
+    "fast-check": "^4.9.0",
+    "typescript": "^5.7.2",
+    "vitest": "^3.2.7"
+  }
+}
