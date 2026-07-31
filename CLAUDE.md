@@ -1,0 +1,92 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## What this is
+
+A browser-based MNREAD-J / MNREAD-Jk reading-chart analysis tool for an ophthalmology clinic. Orthoptists (視能訓練士) enter per-line reading time and error counts during the exam; the app computes reading acuity (RA), maximum reading speed (MRS), and critical print size (CPS), then produces text for the electronic medical record and a printable A4 report for the patient.
+
+Fully client-side and offline-capable. **No patient data leaves the browser, and nothing is persisted** — data leaves only through an explicit file export the user initiates.
+
+## The normative documents
+
+Read these before changing anything that affects a computed value:
+
+- **`oda.lab/`** — the primary sources, as PDFs: the official 2002 Oda manual (`MNREAD-J-JkMan020518.pdf`) and the Oda lab Q&A (`odalab web resource center.pdf`). **These are the final authority on every formula.** Reading them requires poppler (`brew install poppler`); the Read tool renders pages visually, which is necessary because the formulae, tables, and the worked-example scoresheet are laid out graphically.
+- **`SPEC.md`** — the single source of truth for the implementation: formulae, item states, validation rules, output schema, rounding policy. Carries `SPEC_VERSION`. Every formula cites its manual/Q&A locator. **If the implementation disagrees with SPEC.md, SPEC.md is right** — change it first, deliberately, then the code. If SPEC.md disagrees with `oda.lab/`, the primary source is right.
+- **`docs/adr/`** — 10 decisions with their reasoning. Consult these before "fixing" something that looks wrong; several apparent oddities are deliberate.
+- **`PLAN.md`** — phased implementation and verification plan.
+- `deep-research-report-1.md` / `-2.md` — secondary research summaries (Japanese: computation; English: validation). Useful for the automated-CPS literature, which the primary sources don't cover. **Do not resolve a formula question from these** — go to `oda.lab/`. Their `citeturnNNviewN` markers are research-tool artifacts.
+
+Do not restate SPEC.md's formulae in other files. A second copy will drift.
+
+## Commands
+
+```
+pnpm install
+pnpm typecheck          # all packages
+pnpm test               # all packages (Vitest — from Phase 1)
+pnpm verify:fixtures    # check the transcribed golden data against reference formulae
+```
+
+Run a single package: `pnpm --filter @mnread/core test`.
+Run one test file: `pnpm --filter @mnread/core test -- speed.test.ts`.
+
+Node 22+, pnpm workspace. `packages/core` is consumed as TypeScript source (no build step needed for tests).
+
+## Layout
+
+```
+oda.lab/             一次資料PDF（公式マニュアル・Q&A）
+packages/core/       純粋TS。DOM・日付・乱数・ロケール非依存。全関数が純粋関数
+  src/types.ts         SPEC.md の契約をコードで表現したもの
+  src/variants.ts      チャート定数・換算定数
+packages/fixtures/   一次資料から転記したゴールデンデータ
+  data/*.json          出所・許容誤差つき
+  verify-transcription.mjs   独立の参照式による転記検証
+apps/web/            React + 自前SVGチャート + 印刷CSS（Phase 3〜）
+```
+
+`verify-transcription.mjs` deliberately does **not** import `@mnread/core` — it re-derives the reference formulae inline. If it imported core, an error in core could validate a matching transcription error. Keep it independent.
+
+## Rules that are easy to violate
+
+These come from the ADRs. Each one was a real defect in the earlier prototype.
+
+- **Never put calculation in the UI layer** (ADR-0010). Every number displayed comes from a `core` return value — including unit conversions, recommended print sizes, and the numeric parts of findings text. "It's just for display" is how the prototype ended up with two untested conversion bugs.
+- **Never round inside `core`** (ADR-0003). Full double precision throughout; the UI rounds at render time. Golden tests run at 1e-10 tolerance, which internal rounding makes impossible.
+- **Reject invalid input; never clamp or impute** (ADR-0004). `errors > n0`, `t <= 0`, negative distance are errors, not data. `analyze()` returns a discriminated `AnalysisOutcome` rather than throwing, so the UI can show every row's error at once. If any error is present, return no partial result.
+- **0 cpm and missing are different** (ADR-0002). 0 cpm is a measured fact and belongs on the curve; missing has no value and cannot be averaged or log-transformed. The item state is a 6-value enum — never reconstruct it from booleans.
+- **A CPS value without an algorithm ID is not a result** (ADR-0006). Never emit a bare "CPS = 0.6 logMAR" to screen, EMR text, or export. The clinical primary is always `manual_visual_2002`; automated methods are shown alongside, never as replacements.
+- **Never apply the distance correction to cpm.** It applies to RA, CPS, and the curve's x-axis only.
+- **Never carry an English MNREAD constant into a Japanese mode** (ADR-0001). Not 10 words, not 40 cm, not the 200 wpm ACC divisor.
+- **MRS emits three values, not one** (ADR-0005). The manual's text and its worked example disagree; the code must not silently pick a side.
+
+## Open questions
+
+`SPEC.md` §11 tracks unresolved items; code that depends on one carries an `// OPEN-n` comment. OPEN-1 (the M-value offset) was **resolved against the primary sources** — Q&A A7 states `M = 10^(logMAR − 0.4)` outright, and the manual's chart-printed M sizes and its "4M ≈ 28pt" both agree. The remaining items (OPEN-2 … OPEN-5) are minor and none block Phase 1.
+
+## Verified against the primary sources
+
+Every formula in SPEC.md has been checked numerically against the originals, not just against the research reports:
+
+| Check | Result |
+|---|---|
+| pt conversion vs Q&A A4.3's 9-digit table (21 rows) | max relative error 2.8×10⁻⁹ |
+| Distance correction + M multiplier vs manual 表A (33 rows) | exact after the manual's 2-dp rounding |
+| Decimal acuity vs manual 表B, speed vs 表C | exact after rounding |
+| Manual §4 worked example (full 19-row session) | RA, CPS, MRS, M value all reproduce the manual's stated values |
+
+`pnpm verify:fixtures` re-runs all of it.
+
+The one caveat worth knowing: the chart's printed M sizes are R10 preferred numbers (1.2589 printed as "1.3"), so they agree with the formula only to ~3.2%. They confirm the magnitude, not the formula. The formula's real evidence is Q&A A7 and the manual's "1.1 logMAR = 5M" (0.24%).
+
+## Phase status
+
+**Phase 0 (spec freeze) and Phase 1 (formula layer) are complete.** 246 tests pass.
+
+`packages/core` currently implements: reading speed, distance correction, item-state resolution, reading acuity, unit conversions, and input validation. Test detection power was confirmed by mutation testing — breaking a constant or a sign fails between 7 and 67 tests.
+
+**Phase 2 is next**: the plateau / CPS / MRS layer (`manual_visual_2002`, `sdev_1.96`, `expdecay_80/90/95`), the accessibility index (deferred from Phase 1 because it needs the whole curve plus imputation rules), and the top-level `analyze()` that assembles `AnalysisResult`. `AnalysisOutcome` and the CPS/MRS types already exist in `types.ts` — Phase 2 fills them in.
+
+When adding to `core`, follow the existing shape: a low-level function throws `RangeError` on a precondition violation (that's a bug — validation should have run first), while `validateSession()` returns `ValidationIssue[]` for anything a user could type.
