@@ -72,6 +72,92 @@ body {
   cursor: default;
 }
 
+/* ---------- 利用上の注意（常設の帯＋任意展開） ---------- */
+
+.usage-notes {
+  margin-top: 8px;
+}
+
+.usage-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin: 0;
+  padding: 8px 12px;
+  background: var(--warn-bg);
+  border-left: 4px solid var(--warn);
+  font-size: 0.85rem;
+}
+
+.usage-versions {
+  color: var(--muted);
+  margin-left: 6px;
+  white-space: nowrap;
+}
+
+.usage-toggle {
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 3px 10px;
+  border: 1px solid var(--warn);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--warn);
+  cursor: pointer;
+  flex: none;
+}
+
+.usage-detail {
+  border: 1px solid var(--line);
+  border-top: none;
+  padding: 4px 16px 16px;
+  font-size: 0.85rem;
+  /* 検査画面を押し下げ続けないよう、長い場合は中でスクロールさせる */
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+/* 画面幅いっぱいに流すと1行が長すぎて読み返せない。日本語で40字前後に収める */
+.usage-detail > * {
+  max-width: 92ch;
+}
+
+.usage-detail h2 {
+  margin: 16px 0 6px;
+}
+
+.usage-detail ul {
+  margin: 0;
+  padding-left: 1.2em;
+}
+
+.usage-detail li {
+  margin-bottom: 4px;
+}
+
+.usage-limits {
+  margin: 0;
+}
+
+.usage-limits dt {
+  font-weight: 600;
+  margin-top: 10px;
+}
+
+.usage-limits dd {
+  margin: 2px 0 0;
+  padding-left: 1.2em;
+  color: var(--fg);
+}
+
+.usage-source {
+  margin: 16px 0 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
 .paused-banner {
   margin: 8px 0 0;
   padding: 8px 12px;

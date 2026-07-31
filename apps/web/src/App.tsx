@@ -22,6 +22,7 @@ import { SessionHeader } from "./components/SessionHeader.js";
 import { SessionImport } from "./components/SessionImport.js";
 import { SpeedCurve, type CurveOverlay } from "./components/SpeedCurve.js";
 import { TimeCurve } from "./components/TimeCurve.js";
+import { UsageNotes } from "./components/UsageNotes.js";
 import { CPS_METHOD_SHORT } from "./labels.js";
 import {
   deriveSessionView,
@@ -154,6 +155,9 @@ export function App(): JSX.Element {
           </button>
         ))}
       </nav>
+
+      {/* 検証状況は画面のどこかに常時出ている必要がある（PLAN「公開時の注意」） */}
+      <UsageNotes />
 
       {paused && (
         <p className="paused-banner no-print" data-testid="paused-banner">
