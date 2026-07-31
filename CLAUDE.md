@@ -61,10 +61,21 @@ These come from the ADRs. Each one was a real defect in the earlier prototype.
 - **Never apply the distance correction to cpm.** It applies to RA, CPS, and the curve's x-axis only.
 - **Never carry an English MNREAD constant into a Japanese mode** (ADR-0001). Not 10 words, not 40 cm, not the 200 wpm ACC divisor.
 - **MRS emits three values, not one** (ADR-0005). The manual's text and its worked example disagree; the code must not silently pick a side.
+- **Never report a value from a model that doesn't fit.** `expdecay_*` returns `estimable: false` when the residual RMSE is too high — the exponential model genuinely cannot fit a sharp two-limb curve, and a CPS derived from a bad fit is noise with a number attached.
+- **Over-flagging is the safe direction.** The clinical primary is the ORT's visual judgment, so a spurious review request costs a glance at the graph; a silently wrong CPS reaches the medical record. The synthetic suite enforces zero "silent-wrong" across all 15 curve families — that criterion is more important than any accuracy percentage.
 
 ## Open questions
 
 `SPEC.md` §11 tracks unresolved items; code that depends on one carries an `// OPEN-n` comment. OPEN-1 (the M-value offset) was **resolved against the primary sources** — Q&A A7 states `M = 10^(logMAR − 0.4)` outright, and the manual's chart-printed M sizes and its "4M ≈ 28pt" both agree. The remaining items (OPEN-2 … OPEN-5) are minor and none block Phase 1.
+
+## The plateau algorithm was redesigned twice — read SPEC §5.5.2 before touching it
+
+`plateau_sdev_v1` is not a literature algorithm; it is a project-specific ruling (OPEN-3). Two earlier designs were discarded for reasons worth knowing:
+
+1. Requiring every plateau point within 1.96 SD rejects long plateaus structurally (probability ≈ 0.95ⁿ; 66% at 8 points).
+2. A fixed "80% of the plateau level" made the SD term inert — mutation testing showed the multiplier could be changed from 0 to 3 with no test failing. That design was the prototype's fixed-ratio rule wearing a different name.
+
+The current design derives the band from the patient's own variability and re-estimates it from the whole plateau. All six mutations of its decisions now fail tests. When changing it, re-run the mutation checks — a passing suite is not evidence that a design decision is load-bearing.
 
 ## Verified against the primary sources
 

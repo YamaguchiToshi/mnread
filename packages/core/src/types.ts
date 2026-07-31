@@ -11,10 +11,10 @@
  */
 
 /** SPEC.md の版。解析結果に必ず含める。 */
-export const SPEC_VERSION = "0.1.0";
+export const SPEC_VERSION = "0.2.0";
 
 /** 算出結果が変わりうる変更で必ず上げる（SPEC §10）。 */
-export const ALGORITHM_VERSION = "0.1.0";
+export const ALGORITHM_VERSION = "0.2.0";
 
 /* ============================================================
    チャート種別
@@ -141,6 +141,13 @@ export interface ItemResult {
    */
   readonly speedCpm: number | null;
   readonly status: ItemStatus;
+  /**
+   * 記録された読書時間と読み損じ文字数をそのまま保持する。
+   * MRS の pooled / legacy 方式が総文字数と総時間を必要とすること、および
+   * 書き出しファイルが生データを含む必要があることによる。
+   */
+  readonly timeSec: number | null;
+  readonly errorCount: number | null;
   /** RA の N に算入されるか */
   readonly includedInAcuity: boolean;
   /** RA の E への寄与文字数 */
@@ -207,7 +214,7 @@ export type CpsMethodId =
   /** 検者がグラフ上で選択したプラトー。臨床の主値 */
   | "manual_visual_2002"
   /** 平均 - 1.96SD による反復拡張 */
-  | "sdev_1.96"
+  | "plateau_sdev_v1"
   /** 指数減衰フィットの MRS 80/90/95% 到達サイズ */
   | "expdecay_80"
   | "expdecay_90"
@@ -221,6 +228,11 @@ export interface FitDiagnostics {
   /** 対数回帰から除外した 0 cpm の点数。ε で置換しないこと */
   readonly zeroSpeedExcludedCount: number;
   readonly rmseLogSpeed: number | null;
+  /**
+   * モデルの漸近速度（cpm）。プラトー点の平均である `MrsResult` とは別物であり、
+   * 混同しないこと。フィットを行わない算出法では null。
+   */
+  readonly fittedMrsCpm: number | null;
   /** パラメータが探索境界に張り付いたか */
   readonly parameterAtBoundary: boolean;
   /** CPS より大きい側に十分な実測点があるか */
@@ -333,7 +345,11 @@ export type QualityFlag =
   | "FIT_NOT_CONVERGED"
   | "CPS_EXTRAPOLATED"
   | "RA_CENSORED"
-  | "ZERO_SPEED_HANDLING_DIVERGES";
+  | "ZERO_SPEED_HANDLING_DIVERGES"
+  /** CPS より大きい文字サイズの実測点がプラトーから外れている（外れ値・二重プラトー） */
+  | "PLATEAU_GAP"
+  /** 読書時間・速度が生理的範囲を外れている */
+  | "IMPLAUSIBLE_VALUE";
 
 /* ============================================================
    解析の入出力

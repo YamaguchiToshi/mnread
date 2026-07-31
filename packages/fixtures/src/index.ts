@@ -43,3 +43,5 @@ export const ALL_FIXTURES = [
   chartPrintedValues,
   manualWorkedExample,
 ] as const;
+
+export * from "./synthetic.js";

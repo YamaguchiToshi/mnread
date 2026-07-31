@@ -90,7 +90,7 @@ export const ACCESSIBILITY_RANGE_CHART_LOGMAR = {
 
 export const DEFAULT_ANALYSIS_OPTIONS: AnalysisOptions = {
   manualPlateau: null,
-  enabledCpsMethods: ["manual_visual_2002", "sdev_1.96"],
+  enabledCpsMethods: ["manual_visual_2002", "plateau_sdev_v1"],
   /** OPEN-4: 5% に臨床的根拠はない。Phase 5 で実測により調整する。 */
   mrsDisagreementThreshold: 0.05,
   cpsDisagreementThresholdLogMAR: 0.2,

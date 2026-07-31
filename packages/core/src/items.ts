@@ -119,6 +119,8 @@ export function resolveItems(
       correctedLogMAR: effectiveLogMAR,
       speedCpm,
       status: item.status,
+      timeSec: item.timeSec,
+      errorCount: item.errorCount,
       includedInAcuity: rule.includedInAcuity,
       acuityErrorContribution: rule.includedInAcuity ? acuityErrorContribution : 0,
       includedInCurve: rule.includedInCurve && speedCpm !== null,
