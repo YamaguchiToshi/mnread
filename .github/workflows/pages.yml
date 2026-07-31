@@ -1,0 +1,68 @@
+name: Deploy to GitHub Pages
+
+# PLAN.md「GitHub Pages とブランチ構成」の差し替え手順 2。
+# Pages のソースを試作の gh-pages ブランチから、main のビルドへ移す。
+# URL（https://yamaguchitoshi.github.io/mnread/）は変えない。
+#
+# base は apps/web/vite.config.ts で /mnread/ に固定してある。ここを合わせないと
+# アセットが 404 になる。
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 配信中の版が中途半端に上書きされないよう、実行は直列にして途中打ち切りをしない。
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # 壊れた計算を配信しないための門。臨床値を出すツールなので、
+      # テストを通らないものは Pages に載せない。
+      - name: 型チェック
+        run: pnpm typecheck
+
+      - name: ゴールデンデータの転記検証
+        run: pnpm verify:fixtures
+
+      - name: テスト
+        run: pnpm test
+
+      - name: ビルド
+        run: pnpm --filter @mnread/web build
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

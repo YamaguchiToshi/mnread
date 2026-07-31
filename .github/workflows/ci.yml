@@ -1,0 +1,44 @@
+name: CI
+
+# PLAN.md §4「CI構成」— コミットごとに型チェック・core単体・ゴールデン・境界値・
+# プロパティテストを回す。Node 版と lockfile は固定する（値の再現性の前提）。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: 型チェック
+        run: pnpm typecheck
+
+      # 一次資料からの転記が参照式と一致するか。core を通さない独立検証のため
+      # 単体テストより先に流す（転記が壊れていれば以降の合否は意味を持たない）。
+      - name: ゴールデンデータの転記検証
+        run: pnpm verify:fixtures
+
+      - name: テスト
+        run: pnpm test
+
+      # 配信物が壊れていないことを、Pages へ出す前に確認する。
+      - name: ビルド
+        run: pnpm --filter @mnread/web build
