@@ -106,13 +106,15 @@ The one caveat worth knowing: the chart's printed M sizes are R10 preferred numb
 
 ## Phase status
 
-**Phases 0–4 are complete.** 472 tests pass (core 344 + web 128).
+**Phases 0–4 are complete.** 489 tests pass (core 344 + web 145).
 
 `packages/core` is finished for clinical purposes: reading speed, distance correction, item states, reading acuity, unit conversions, validation, the plateau / CPS / MRS layer, the accessibility index, reading zones, and `analyze()`. Test detection power was confirmed by mutation testing — breaking a constant or a sign fails between 7 and 67 tests.
 
 `apps/web` has all three screens: **入力** (19-row score sheet, keypad-only, live cpm and curve), **判定** (plateau selection on the curve, CPS boundary drag, exclusions with reasons, override reason, the manual's log-time secondary plot), **出力** (EMR text, A4 patient report, JSON/CSV export + JSON import for re-analysis).
 
-**Phase 5 is next**: validation against real records. 20–30 past cases against hand calculation or MNJA, double-entry by two ORTs, calibration of the thresholds that are currently provisional (OPEN-2, OPEN-4, OPEN-6, OPEN-7), and **clinician review of everything patient-facing** — the zone wording, the A4 report's Japanese, the EMR template. The acceptance bar is that *every* discrepancy is explained, not that a percentage is met.
+**Phase 5 is underway** (started 2026-08-01): validation against real records. Nothing in it can be done from the development side alone — the records, the visual CPS, and the verdict on the patient-facing Japanese all live in the clinic. So the phase opens by putting the app where clinicians can use it: `main` is now built and served to <https://yamaguchitoshi.github.io/mnread/> by `.github/workflows/pages.yml` (the `gh-pages` prototype is retired), and `docs/review-request.md` is the request to hand to them. The work itself: 20–30 past cases against hand calculation or MNJA, double-entry by two ORTs, calibration of the thresholds that are currently provisional (OPEN-2, OPEN-4, OPEN-6, OPEN-7), and **clinician review of everything patient-facing** — the zone wording, the A4 report's Japanese, the EMR template. The acceptance bar is that *every* discrepancy is explained, not that a percentage is met.
+
+Deploys are gated: `pages.yml` runs typecheck, `verify:fixtures`, and the full suite before publishing. Serving a broken calculation matters more than serving it quickly.
 
 > Three UI defects in Phase 4 only appeared when the app was driven in a real browser — an SVG hit-test order problem, labels running off the plot, and the A4 report breaking across two pages. jsdom renders but does not lay out or hit-test. **For anything involving SVG geometry or print CSS, drive the real thing.**
 
