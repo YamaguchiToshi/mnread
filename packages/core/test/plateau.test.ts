@@ -395,7 +395,7 @@ describe("analyze() 全体", () => {
       exp.mrsArithmetic,
       9,
     );
-    expect(r.specVersion).toBe("0.2.0");
+    expect(r.specVersion).toBe("0.3.0");
   });
 
   it("検者の目視判定があればそちらが主値になる", () => {
