@@ -1,0 +1,17 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.DS_Store
+.vite/
+
+# 測定データは端末に保存しない方針（ADR / SPEC §1.3）。
+# 検証用の書き出しファイルを誤ってコミットしないための保険。
+*.patient.json
+*.patient.csv
+/exports/
+
+# 一次資料PDFは小田研究室（東京女子大学）の著作物であり、本リポジトリでは
+# 再配布しない。入手先と、本リポジトリが原典から何を取り込んだかは
+# oda.lab/README.md を参照。必要な数値は packages/fixtures に転記済み。
+oda.lab/*.pdf
