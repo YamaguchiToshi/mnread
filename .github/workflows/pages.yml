@@ -26,11 +26,16 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      # pnpm 11 の対応は action-setup v6 から。版は package.json の
+      # packageManager (pnpm@11.13.1) から取るので、ここでは指定しない。
+      - uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v4
+      # cache: pnpm は明示指定なので v5 以降も従来どおり効く
+      # （v5/v6 で変わったのは packageManager からの「自動」キャッシュの方）。
+      # pnpm を先に入れておく必要があるため、action-setup より後に置く。
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -51,9 +56,12 @@ jobs:
       - name: ビルド
         run: pnpm --filter @mnread/web build
 
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
 
-      - uses: actions/upload-pages-artifact@v3
+      # v4 以降、ドット始まりのファイルは成果物に含まれない。apps/web/dist は
+      # index.html と assets/ だけで、Pages を Actions から配信する構成では
+      # .nojekyll も要らないため影響なし。public/ を足すときは注意。
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: apps/web/dist
 
@@ -64,5 +72,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      # upload-pages-artifact と版を揃える（成果物の受け渡し形式が対）。
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

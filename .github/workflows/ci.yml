@@ -17,11 +17,15 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      # 版は package.json の packageManager (pnpm@11.13.1) から取る。
+      # pnpm 11 の対応は action-setup v6 から。
+      - uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v4
+      # pages.yml と同じ組み合わせに揃えること。CI が通って Pages が落ちる、
+      # という食い違いを作らないため。
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
