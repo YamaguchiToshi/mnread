@@ -324,6 +324,14 @@ SPEC §5.5.2 が Phase 5 に送っていた `mnreadR` 2.1.7 との差異測定�
 
 **配信の門**: `pages.yml` は型チェック・転記検証・全テストを通したものだけを配信する。
 臨床値を出すツールであり、壊れた計算を配信しないことのほうが、配信が速いことより重要である。
+
+**検索エンジンには載せない（検証中のあいだ）**: `apps/web/index.html` に
+`<meta name="robots" content="noindex, nofollow, noarchive">` を置いてある。GitHub Pages は
+応答ヘッダを足せないため `X-Robots-Tag` は使えず、robots.txt も効かない — クローラが読むのは
+ドメイン直下の `https://yamaguchitoshi.github.io/robots.txt` であり、本リポジトリから配信できる
+のは `/mnread/robots.txt` だけだからである。**行儀のよいクローラへのお願いであって閲覧の制限
+ではない**（URL を知っていれば誰でも開ける。院外に渡すのは監修依頼の相手に限る運用で担保する）。
+`apps/web/test/index-html.test.ts` が消失を検出する。**Phase 5 の検証完了時に外す。**
 CI（`ci.yml`）は PR と `main` への push で同じ検証を回す（PLAN §4）。
 
 **公開時の注意**: リポジトリは public であり、Pages に載せた時点で誰でもアクセスできる臨床値計算ツールになる。Phase 5 の実測検証が完了するまでは、画面と全出力に `algorithmVersion` と検証状況を明示すること（Phase 4 の出力仕様に含める）。

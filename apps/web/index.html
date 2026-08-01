@@ -11,6 +11,21 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; connect-src 'none'; form-action 'none'; base-uri 'none'"
     />
+    <!--
+      検索結果に載せない（Phase 5 の実測検証が終わるまで）。
+
+      臨床値を出すツールであり、検証中の版が院外の人の検索経路に乗るのは避けたい。
+      GitHub Pages は応答ヘッダを足せないので `X-Robots-Tag` は使えず、robots.txt も
+      効かない — クローラが読むのはドメイン直下の
+      `https://yamaguchitoshi.github.io/robots.txt` であり、ここは別リポジトリ
+      （ユーザーサイト）の持ち物で、本リポジトリから配信できるのは
+      `/mnread/robots.txt` だけだからである。したがって meta で指示する。
+
+      これは行儀のよいクローラへの**お願い**であって、閲覧の制限ではない。
+      URL を知っていれば誰でも開ける。
+      **Phase 5 の検証が完了し、公開してよいと判断した時点で外すこと。**
+    -->
+    <meta name="robots" content="noindex, nofollow, noarchive" />
     <title>MNREAD-J / Jk 解析</title>
     <!--
       アイコンはデータURIで埋め込む。別ファイルにするとリクエストが1本増え、
