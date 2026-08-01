@@ -21,7 +21,8 @@ import type { RowView } from "../session/derive.js";
 
 const WIDTH = 640;
 const HEIGHT = 240;
-const MARGIN = { top: 12, right: 16, bottom: 40, left: 56 } as const;
+/* 左余白は主グラフと揃える。2つの図は横軸を共有しており、ずれると比べられない */
+const MARGIN = { top: 12, right: 24, bottom: 40, left: 70 } as const;
 
 const PLOT_WIDTH = WIDTH - MARGIN.left - MARGIN.right;
 const PLOT_HEIGHT = HEIGHT - MARGIN.top - MARGIN.bottom;
@@ -87,6 +88,12 @@ export function TimeCurve({ rows, focusedRowIndex = null }: TimeCurveProps): JSX
     10 ** (bottomExponent + i),
   );
 
+  /** 主グラフと同じく各桁の 2〜9。桁の中のどこにいるかを目測できるようにする */
+  const yMinorTicks: number[] = [];
+  for (let e = bottomExponent; e < topExponent; e += 1) {
+    for (let m = 2; m <= 9; m += 1) yMinorTicks.push(m * 10 ** e);
+  }
+
   const path = plotted
     .map((p, i) => `${i === 0 ? "M" : "L"}${toX(p.logMAR)} ${toY(p.timeSec)}`)
     .join(" ");
@@ -108,6 +115,28 @@ export function TimeCurve({ rows, focusedRowIndex = null }: TimeCurveProps): JSX
         data-y-bottom-exponent={bottomExponent}
         data-y-top-exponent={topExponent}
       >
+        {yMinorTicks.map((sec) => (
+          <line
+            key={`minor-${sec}`}
+            className="grid-minor"
+            x1={MARGIN.left}
+            x2={MARGIN.left + PLOT_WIDTH}
+            y1={toY(sec)}
+            y2={toY(sec)}
+          />
+        ))}
+
+        {xTicks.map((tick) => (
+          <line
+            key={`v-${tick.chart}`}
+            className="grid-vertical"
+            x1={toX(tick.logMAR)}
+            x2={toX(tick.logMAR)}
+            y1={MARGIN.top}
+            y2={MARGIN.top + PLOT_HEIGHT}
+          />
+        ))}
+
         {yTicks.map((sec) => (
           <g key={sec}>
             <line
@@ -118,7 +147,7 @@ export function TimeCurve({ rows, focusedRowIndex = null }: TimeCurveProps): JSX
               y2={toY(sec)}
             />
             <text
-              className="tick"
+              className="tick tick-major"
               x={MARGIN.left - 8}
               y={toY(sec)}
               textAnchor="end"
@@ -184,7 +213,7 @@ export function TimeCurve({ rows, focusedRowIndex = null }: TimeCurveProps): JSX
         </text>
         <text
           className="axis-label"
-          transform={`translate(14 ${MARGIN.top + PLOT_HEIGHT / 2}) rotate(-90)`}
+          transform={`translate(13 ${MARGIN.top + PLOT_HEIGHT / 2}) rotate(-90)`}
           textAnchor="middle"
         >
           読書時間（秒）

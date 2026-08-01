@@ -224,11 +224,11 @@ describe("CPS 境界の移動", () => {
     const x1 = Number(line.getAttribute("x1"));
     const x2 = Number(line.getAttribute("x2"));
 
-    // 描画領域は x=56〜624。プラトーは 1.3〜1.1 logMAR で、実測は 1.3〜0.5 まである。
-    // 大文字側の端（624）に届くのはプラトーが最大サイズを含むためで正しいが、
-    // 小文字側は実測の端まで延びてはならない。
-    const plotLeft = 56;
-    const plotWidth = 624 - plotLeft;
+    // 描画領域は x=70〜616（SpeedCurve の MARGIN）。プラトーは 1.3〜1.1 logMAR、
+    // 実測は 1.3〜0.5 まである。大文字側の端に届くのはプラトーが最大サイズを
+    // 含むためで正しいが、小文字側は実測の端まで延びてはならない。
+    const plotLeft = 70;
+    const plotWidth = 616 - plotLeft;
     expect(x1).toBeGreaterThan(plotLeft);
     expect(x2 - x1).toBeLessThan(plotWidth / 2);
   });

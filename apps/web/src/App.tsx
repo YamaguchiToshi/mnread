@@ -34,11 +34,45 @@ import { entryOrder, hasEnteredData } from "./session/state.js";
 
 type Screen = "input" | "judge" | "output";
 
+const SCREEN_ORDER: readonly Screen[] = ["input", "judge", "output"];
+
 const SCREEN_LABEL: Readonly<Record<Screen, string>> = {
   input: "入力",
   judge: "判定",
   output: "出力",
 };
+
+/**
+ * 工程の見出しに添える一言。
+ *
+ * 3面は順番に進む作業であり、いま何が済んでいて次に何が要るのかは、面を
+ * 開かずに分かる必要がある。表示するのは `view` が既に持っている真偽値だけで、
+ * ここで数え上げや算術は行わない（ADR-0010）。
+ */
+type StepTone = "plain" | "warn" | "error";
+
+function stepState(
+  screen: Screen,
+  { dirty, hasError, judged, requiresReview }: {
+    dirty: boolean;
+    hasError: boolean;
+    judged: boolean;
+    requiresReview: boolean;
+  },
+): readonly [string, StepTone] {
+  switch (screen) {
+    case "input":
+      if (hasError) return ["要修正", "error"];
+      return dirty ? ["記録中", "plain"] : ["未入力", "plain"];
+    case "judge":
+      if (hasError) return ["入力エラー", "error"];
+      return judged ? ["目視判定あり", "plain"] : ["未判定", "warn"];
+    case "output":
+      if (hasError) return ["作成できません", "error"];
+      if (requiresReview) return ["要確認", "warn"];
+      return ["作成できます", "plain"];
+  }
+}
 
 export function App(): JSX.Element {
   const [history, dispatch] = useReducer(reduce, undefined, () => createHistory());
@@ -111,50 +145,90 @@ export function App(): JSX.Element {
     };
   }, [view, draft.judgement.excludedRowIndices]);
 
+  const stepFacts = {
+    dirty,
+    hasError: view.hasError,
+    judged: view.manualPlateauRows !== null,
+    requiresReview: view.outcome.ok && view.outcome.result.requiresReview,
+  };
+
   return (
     <div className="app">
-      <header className="app-header no-print">
-        <h1>MNREAD-J / Jk 解析</h1>
-        <div className="app-actions">
-          <button type="button" onClick={() => dispatch({ type: "undo" })} disabled={history.past.length === 0}>
-            取り消し
-          </button>
-          <button type="button" onClick={() => dispatch({ type: "redo" })} disabled={history.future.length === 0}>
-            やり直し
-          </button>
-          <button type="button" onClick={() => setPaused((p) => !p)} data-testid="pause-toggle">
-            {paused ? "検査を再開" : "検査を中断"}
-          </button>
-          <SessionImport
-            dispatch={dispatch}
-            dirty={dirty}
-            onLoaded={() => {
-              setFocusedRowIndex(null);
-              setOpenStatusMenuFor(null);
-              setPaused(false);
-              setScreen("input");
-            }}
-          />
-          <button type="button" onClick={resetSession}>
-            新しい検査
-          </button>
-        </div>
-      </header>
+      <div className="app-topbar no-print">
+        <header className="app-header">
+          <div className="app-title">
+            <h1>MNREAD-J / Jk 解析</h1>
+            <span className="app-subtitle">読書チャート解析（院内ツール）</span>
+          </div>
+          <div className="app-actions">
+            <span className="btn-group">
+              <button
+                type="button"
+                className="btn"
+                onClick={() => dispatch({ type: "undo" })}
+                disabled={history.past.length === 0}
+              >
+                取り消し
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => dispatch({ type: "redo" })}
+                disabled={history.future.length === 0}
+              >
+                やり直し
+              </button>
+            </span>
+            <button
+              type="button"
+              className={paused ? "btn btn-on" : "btn"}
+              onClick={() => setPaused((p) => !p)}
+              data-testid="pause-toggle"
+            >
+              {paused ? "検査を再開" : "検査を中断"}
+            </button>
+            <SessionImport
+              dispatch={dispatch}
+              dirty={dirty}
+              onLoaded={() => {
+                setFocusedRowIndex(null);
+                setOpenStatusMenuFor(null);
+                setPaused(false);
+                setScreen("input");
+              }}
+            />
+            <button type="button" className="btn btn-danger" onClick={resetSession}>
+              新しい検査
+            </button>
+          </div>
+        </header>
 
-      <nav className="app-tabs no-print" aria-label="画面">
-        {(Object.keys(SCREEN_LABEL) as Screen[]).map((id) => (
-          <button
-            key={id}
-            type="button"
-            data-testid={`tab-${id}`}
-            aria-current={screen === id}
-            className={screen === id ? "tab tab-active" : "tab"}
-            onClick={() => setScreen(id)}
-          >
-            {SCREEN_LABEL[id]}
-          </button>
-        ))}
-      </nav>
+        <nav className="app-steps" aria-label="検査の工程">
+          {SCREEN_ORDER.map((id, i) => {
+            const [state, tone] = stepState(id, stepFacts);
+            return (
+              <button
+                key={id}
+                type="button"
+                data-testid={`tab-${id}`}
+                aria-current={screen === id}
+                className={screen === id ? "step step-active" : "step"}
+                onClick={() => setScreen(id)}
+              >
+                <span className="step-index" aria-hidden="true">
+                  {i + 1}
+                </span>
+                <span className="step-text">
+                  <span className="step-name">{SCREEN_LABEL[id]}</span>
+                  <span className="step-state" data-tone={tone}>
+                    {state}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </nav>
+      </div>
 
       {/* 検証状況は画面のどこかに常時出ている必要がある（PLAN「公開時の注意」） */}
       <UsageNotes />
@@ -170,20 +244,28 @@ export function App(): JSX.Element {
         <main className="app-body no-print">
           <div className="column column-input">
             <SessionHeader draft={draft} dispatch={dispatch} />
-            <ScoreSheet
-              draft={draft}
-              rows={view.rows}
-              displayOrder={displayOrder}
-              dispatch={dispatch}
-              openStatusMenuFor={openStatusMenuFor}
-              setOpenStatusMenuFor={setOpenStatusMenuFor}
-              focusedRowIndex={focusedRowIndex}
-              setFocusedRowIndex={setFocusedRowIndex}
-            />
+            <div className="card">
+              <ScoreSheet
+                draft={draft}
+                rows={view.rows}
+                displayOrder={displayOrder}
+                dispatch={dispatch}
+                openStatusMenuFor={openStatusMenuFor}
+                setOpenStatusMenuFor={setOpenStatusMenuFor}
+                focusedRowIndex={focusedRowIndex}
+                setFocusedRowIndex={setFocusedRowIndex}
+              />
+            </div>
           </div>
 
           <div className="column column-view">
-            <SpeedCurve rows={view.rows} focusedRowIndex={focusedRowIndex} />
+            <div className="card">
+              <div className="card-head">
+                <h2>読書速度曲線</h2>
+                <span className="detail">検査中も形が伸びていきます</span>
+              </div>
+              <SpeedCurve rows={view.rows} focusedRowIndex={focusedRowIndex} />
+            </div>
             <IssueList draft={draft} view={view} />
             <LiveSummary view={view} />
             <KeyboardLegend />
@@ -194,21 +276,29 @@ export function App(): JSX.Element {
       {screen === "judge" && (
         <main className="app-body no-print">
           <div className="column column-view">
-            <SpeedCurve
-              rows={view.rows}
-              focusedRowIndex={null}
-              overlay={overlay}
-              interaction={{
-                onTogglePoint: (rowIndex) =>
-                  dispatch({ type: "setPlateau", rows: togglePlateauRow(view, rowIndex) }),
-                onMoveBoundary: (rowIndex) =>
-                  dispatch({
-                    type: "setPlateau",
-                    rows: plateauRowsFromBoundary(view, rowIndex),
-                  }),
-              }}
-            />
-            <TimeCurve rows={view.rows} />
+            <div className="card">
+              <div className="card-head">
+                <h2>読書速度曲線</h2>
+                <span className="detail">プラトーを選ぶ図</span>
+              </div>
+              <SpeedCurve
+                rows={view.rows}
+                focusedRowIndex={null}
+                overlay={overlay}
+                interaction={{
+                  onTogglePoint: (rowIndex) =>
+                    dispatch({ type: "setPlateau", rows: togglePlateauRow(view, rowIndex) }),
+                  onMoveBoundary: (rowIndex) =>
+                    dispatch({
+                      type: "setPlateau",
+                      rows: plateauRowsFromBoundary(view, rowIndex),
+                    }),
+                }}
+              />
+            </div>
+            <div className="card">
+              <TimeCurve rows={view.rows} />
+            </div>
           </div>
           <div className="column column-input">
             <JudgementPanel draft={draft} view={view} dispatch={dispatch} />

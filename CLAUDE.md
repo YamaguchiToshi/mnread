@@ -118,7 +118,19 @@ Deploys are gated: `pages.yml` runs typecheck, `verify:fixtures`, and the full s
 
 **Two Phase 6 items were pulled forward** while Phase 5 waits on the clinic: the on-screen validation status and the known-limitations panel (`apps/web/src/components/UsageNotes.tsx`). Once the app is public, unvalidated values are already in front of clinicians — "明示する" is due at publication, not at distribution. The strip is permanent and cannot be dismissed; only its detail collapses. There is deliberately no "don't show again" — nothing is persisted, so it could not work, and faking it would break the no-storage guarantee. What's left in Phase 6 is the PWA / offline check.
 
-> Three UI defects in Phase 4 only appeared when the app was driven in a real browser — an SVG hit-test order problem, labels running off the plot, and the A4 report breaking across two pages. jsdom renders but does not lay out or hit-test. **For anything involving SVG geometry or print CSS, drive the real thing.**
+> Three UI defects in Phase 4 only appeared when the app was driven in a real browser — an SVG hit-test order problem, labels running off the plot, and the A4 report breaking across two pages. jsdom renders but does not lay out or hit-test. **For anything involving SVG geometry or print CSS, drive the real thing.** Measure the report in a **680 px viewport under `emulateMedia("print")`** — that is the A4 text block (180 mm); at the normal viewport the report reports a height it will never have on paper.
+
+## The A4 report fits on one page for three reasons — don't undo any of them
+
+SPEC §8.2.2 requires the zone table, the recommended-size box *and* the speed curve on the patient's sheet. Single-column, that is ~300 mm of content on a 265 mm page, and the curve — the item that can't be dropped — is what falls off the bottom.
+
+- **The lower half is two columns** (`.report-columns`): recommended size + specimen on the left, the curve on the right. This is load-bearing, not styling. `break-inside: avoid` on that grid pushes the whole block to page 2; it is deliberately absent.
+- **The figure's SVG text is enlarged only inside the two-column layout** (`.report-figure:not(:only-child)`). The SVG scales with its viewBox, so at an 85 mm column the 11.5 px ticks land at about 4 pt. When there is no CPS the figure becomes `:only-child`, spans the full width, and must *not* get the enlargement.
+- **Label placement in `SpeedCurve` may not depend on text width.** The MRS label is anchored to whichever end of the plateau span points inward, precisely so the same code survives the report's larger type. A centred label with a fixed pixel clamp overflowed the plot the moment the figure's font changed.
+
+The report also carries an **actual-size type specimen** (`pt` is physical, so it prints true at 100%) with a **50 mm calibration bar** so the recipient can detect shrink-to-fit printing. The bar is the only thing that makes the specimen safe to hand out; don't drop it. The specimen is a single character on purpose — a word overflows the column at large recommended sizes.
+
+Overlay labels use no `paint-order: stroke` halo: Chrome writes stroked text to PDF twice, and the report's text layer came out as `CPS 1..40（（目視））`.
 
 When adding to `core`, follow the existing shape: a low-level function throws `RangeError` on a precondition violation (that's a bug — validation should have run first), while `validateSession()` returns `ValidationIssue[]` for anything a user could type.
 

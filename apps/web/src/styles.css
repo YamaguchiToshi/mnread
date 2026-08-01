@@ -1,23 +1,78 @@
 /*
- * 検査中に見る画面である。装飾より、行の状態が一瞥でわかることを優先する。
+ * 見た目の方針
+ *
+ * 題材は MNREAD チャートそのもの——白い紙、黒い明朝、19段の大きさの梯子、
+ * 罫で区切られた記録用紙である。装飾はそこから借りる。画面は「記録用紙＋計器の
+ * 読み値」、紙は「診療文書」であり、ダッシュボードではない。
+ *
+ * したがって:
+ *   - 色は紙と墨、加えて計測を表す藍1色・プラトーを表す緑1色に絞る。
+ *     臨床画面で見慣れない配色は、それ自体が欠陥である。
+ *   - 数値はすべて等幅数字（tabular-nums）。桁が縦に揃うことが、
+ *     打ち間違いに気づく唯一の手がかりになる。
+ *   - 強弱は1か所に集める。入力画面では「いま打っている行」と cpm、
+ *     判定画面では曲線、紙では推奨サイズの実物大見本。
+ *
  * 末尾に A4 レポート用の @media print がある。
  */
 
 :root {
-  --bg: #ffffff;
-  --fg: #16181d;
-  --muted: #6b7280;
-  --line: #d5d9e0;
-  --accent: #1c4f8f;
-  --error: #b3261e;
-  --error-bg: #fdecea;
+  /* ---- 紙と墨 ---- */
+  --paper: #f6f7f9;
+  --surface: #ffffff;
+  --surface-2: #f1f3f6;
+  --surface-3: #e8ebf0;
+
+  --ink: #101418;
+  --ink-2: #454e5a;
+  --ink-3: #6b7480;
+
+  --rule: #dde1e7;
+  --rule-2: #c2c8d1;
+
+  /* ---- 意味を持つ色 ---- */
+  --accent: #17457f; /* 測定・算出に属するもの */
+  --accent-ink: #123763;
+  --accent-wash: #e9f0fa;
+  --plateau: #0f6b4f; /* プラトー／快適域 */
+  --plateau-wash: #e6f2ec;
+
+  --error: #a4231d;
+  --error-bg: #fcebe9;
   --warn: #8a5300;
-  --warn-bg: #fff6e5;
-  --touched-bg: #f2f6fb;
-  --focus-bg: #dde9f8;
-  font-family: system-ui, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+  --warn-bg: #fff5e3;
+
+  /* 後方互換（既存クラスが参照している） */
+  --bg: var(--surface);
+  --fg: var(--ink);
+  --muted: var(--ink-3);
+  --line: var(--rule);
+  --touched-bg: #f8fafc;
+  --focus-bg: var(--accent-wash);
+
+  /* ---- 余白 ---- */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+  --s6: 32px;
+
+  --radius: 6px;
+  --radius-sm: 4px;
+
+  /* ---- 書体 ---- */
+  --font-ui: system-ui, -apple-system, "Hiragino Kaku Gothic ProN", "Noto Sans JP",
+    "Yu Gothic UI", sans-serif;
+  /* 患者向けの紙でだけ使う。MNREAD-J のチャートは明朝で刷られている */
+  --font-mincho: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif JP",
+    "Hiragino Mincho Pro", serif;
+  --font-mono: ui-monospace, "SF Mono", "SFMono-Regular", Menlo, monospace;
+
+  font-family: var(--font-ui);
   font-size: 16px;
   color-scheme: light;
+  -webkit-text-size-adjust: 100%;
 }
 
 * {
@@ -26,94 +81,310 @@
 
 body {
   margin: 0;
-  background: var(--bg);
-  color: var(--fg);
+  background: var(--paper);
+  color: var(--ink);
+  line-height: 1.55;
+}
+
+/* 数字は必ず桁が揃う。読み違いを防ぐのはこの1行である */
+.num,
+.cell,
+.readout-value,
+.score-sheet,
+.zone-table,
+.summary-list,
+.method-value,
+kbd {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: var(--radius-sm);
 }
 
 .app {
-  max-width: 1400px;
+  max-width: 1520px;
   margin: 0 auto;
-  padding: 12px 16px 48px;
+  padding: 0 var(--s5) 64px;
+}
+
+/* ============================================================
+   上部（見出し・操作・工程・注意帯）
+   検査中はここが常に見えている必要がある
+   ============================================================ */
+
+.app-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  margin: 0 calc(var(--s5) * -1);
+  padding: 0 var(--s5);
+  background: var(--paper);
+  border-bottom: 1px solid var(--rule);
+  box-shadow: 0 1px 0 rgb(16 20 24 / 4%);
 }
 
 .app-header {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  border-bottom: 2px solid var(--line);
-  padding-bottom: 8px;
+  gap: var(--s3) var(--s5);
+  padding: var(--s3) 0 var(--s2);
+}
+
+.app-title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s2);
+  min-width: 0;
 }
 
 .app-header h1 {
-  font-size: 1.15rem;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
   margin: 0;
+  white-space: nowrap;
+}
+
+.app-subtitle {
+  font-size: 0.75rem;
+  color: var(--ink-3);
+  white-space: nowrap;
 }
 
 .app-actions {
   display: flex;
-  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
 }
 
+/* 操作の重さで見た目を分ける。「新しい検査」は入力を捨てる操作である */
+.btn-group {
+  display: inline-flex;
+}
+
+.btn-group > .btn {
+  border-radius: 0;
+  margin-left: -1px;
+}
+
+.btn-group > .btn:first-child {
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  margin-left: 0;
+}
+
+.btn-group > .btn:last-child {
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.btn,
 .app-actions button,
+.judgement-actions button,
+.output-actions button,
 .status-button {
   font: inherit;
-  font-size: 0.85rem;
-  padding: 4px 10px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  background: #fff;
+  font-size: 0.8125rem;
+  line-height: 1.2;
+  padding: 6px 12px;
+  min-height: 30px;
+  border: 1px solid var(--rule-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
   cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 90ms ease, border-color 90ms ease;
 }
 
-.app-actions button:disabled {
-  opacity: 0.4;
+.btn:hover:not(:disabled),
+.app-actions button:hover:not(:disabled),
+.judgement-actions button:hover:not(:disabled),
+.output-actions button:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.btn:disabled,
+.app-actions button:disabled,
+.judgement-actions button:disabled,
+.output-actions button:disabled {
+  opacity: 0.42;
   cursor: default;
+}
+
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-ink);
+  border-color: var(--accent-ink);
+}
+
+.btn-danger {
+  color: var(--error);
+  border-color: #e2b6b3;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: var(--error-bg);
+}
+
+.btn-on {
+  background: var(--warn-bg);
+  border-color: #d8b473;
+  color: var(--warn);
+  font-weight: 600;
+}
+
+/* ---------- 工程（入力 → 判定 → 出力） ---------- */
+
+.app-steps {
+  display: flex;
+  gap: var(--s1);
+  align-items: stretch;
+  padding-bottom: 0;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  font: inherit;
+  text-align: left;
+  padding: 7px 16px 8px;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+  position: relative;
+  top: 1px;
+}
+
+.step:hover {
+  background: var(--surface-2);
+  color: var(--ink-2);
+}
+
+.step-index {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border-radius: 50%;
+  border: 1px solid currentcolor;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.step-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.step-name {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.step-state {
+  font-size: 0.6875rem;
+  color: var(--ink-3);
+}
+
+.step-active {
+  background: var(--surface);
+  border-color: var(--rule);
+  color: var(--ink);
+  box-shadow: inset 0 3px 0 var(--accent);
+}
+
+.step-active .step-index {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.step-active .step-state {
+  color: var(--ink-2);
+}
+
+.step-state[data-tone="warn"] {
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.step-state[data-tone="error"] {
+  color: var(--error);
+  font-weight: 600;
 }
 
 /* ---------- 利用上の注意（常設の帯＋任意展開） ---------- */
 
 .usage-notes {
-  margin-top: 8px;
+  margin: var(--s3) 0 0;
 }
 
 .usage-banner {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  gap: 8px 16px;
+  gap: var(--s2) var(--s4);
   margin: 0;
-  padding: 8px 12px;
+  padding: 7px 14px;
   background: var(--warn-bg);
+  border: 1px solid #eddcb8;
   border-left: 4px solid var(--warn);
-  font-size: 0.85rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.8125rem;
+  line-height: 1.45;
 }
 
 .usage-versions {
-  color: var(--muted);
+  color: #7b6136;
   margin-left: 6px;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .usage-toggle {
   font: inherit;
-  font-size: 0.8rem;
-  padding: 3px 10px;
-  border: 1px solid var(--warn);
-  border-radius: 4px;
-  background: #fff;
+  font-size: 0.75rem;
+  padding: 4px 10px;
+  border: 1px solid #cfa759;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
   color: var(--warn);
   cursor: pointer;
   flex: none;
+  white-space: nowrap;
+}
+
+.usage-toggle:hover {
+  background: #fffaf0;
 }
 
 .usage-detail {
-  border: 1px solid var(--line);
+  border: 1px solid var(--rule);
   border-top: none;
-  padding: 4px 16px 16px;
-  font-size: 0.85rem;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  background: var(--surface);
+  padding: var(--s1) var(--s4) var(--s4);
+  font-size: 0.8125rem;
   /* 検査画面を押し下げ続けないよう、長い場合は中でスクロールさせる */
   max-height: 60vh;
   overflow-y: auto;
@@ -125,7 +396,11 @@ body {
 }
 
 .usage-detail h2 {
-  margin: 16px 0 6px;
+  margin: var(--s4) 0 var(--s1);
+  font-size: 0.875rem;
+  color: var(--ink);
+  border: none;
+  padding: 0;
 }
 
 .usage-detail ul {
@@ -134,7 +409,7 @@ body {
 }
 
 .usage-detail li {
-  margin-bottom: 4px;
+  margin-bottom: var(--s1);
 }
 
 .usage-limits {
@@ -149,32 +424,38 @@ body {
 .usage-limits dd {
   margin: 2px 0 0;
   padding-left: 1.2em;
-  color: var(--fg);
+  color: var(--ink-2);
 }
 
 .usage-source {
-  margin: 16px 0 0;
-  font-size: 0.78rem;
-  color: var(--muted);
+  margin: var(--s4) 0 0;
+  font-size: 0.75rem;
+  color: var(--ink-3);
 }
 
 .paused-banner {
-  margin: 8px 0 0;
-  padding: 8px 12px;
+  margin: var(--s3) 0 0;
+  padding: var(--s2) var(--s3);
   background: var(--warn-bg);
+  border: 1px solid #eddcb8;
   border-left: 4px solid var(--warn);
-  font-size: 0.9rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
 }
+
+/* ============================================================
+   本体の2段組
+   ============================================================ */
 
 .app-body {
   display: grid;
-  grid-template-columns: minmax(520px, 1fr) minmax(420px, 1fr);
-  gap: 24px;
+  grid-template-columns: minmax(560px, 7fr) minmax(440px, 6fr);
+  gap: var(--s5);
   align-items: start;
-  margin-top: 16px;
+  margin-top: var(--s4);
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1180px) {
   .app-body {
     grid-template-columns: 1fr;
   }
@@ -182,94 +463,189 @@ body {
 
 .column {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+}
+
+/* ---------- カード（画面上の紙） ---------- */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: var(--s4);
+}
+
+.card > :first-child {
+  margin-top: 0;
+}
+
+.card > :last-child {
+  margin-bottom: 0;
+}
+
+.card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s2) var(--s3);
+  margin: 0 0 var(--s3);
+  padding-bottom: var(--s2);
+  border-bottom: 1px solid var(--rule);
+}
+
+.card-head h2,
+.card-head h3 {
+  margin: 0;
 }
 
 h2 {
-  font-size: 0.95rem;
-  margin: 20px 0 8px;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  margin: 0 0 var(--s2);
 }
 
-/* ---------- 検査条件 ---------- */
+h3 {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--ink-2);
+  margin: var(--s4) 0 var(--s2);
+}
+
+/* ============================================================
+   検査条件
+   ============================================================ */
 
 .field-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 8px 12px;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: var(--s3);
 }
 
 .field-grid label {
   display: flex;
   flex-direction: column;
-  font-size: 0.78rem;
-  color: var(--muted);
-  gap: 2px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink-3);
+  gap: 3px;
 }
 
 .field-grid input,
 .field-grid select {
   font: inherit;
-  font-size: 0.9rem;
-  padding: 4px 6px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  color: var(--fg);
-  background: #fff;
+  font-size: 0.9375rem;
+  font-weight: 400;
+  color: var(--ink);
+  padding: 6px 8px;
+  min-height: 34px;
+  border: 1px solid var(--rule-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.field-grid input:hover,
+.field-grid select:hover {
+  border-color: #a9b1bd;
+}
+
+/* 視距離は距離補正の入り口であり、全行の値を動かす。強調して間違いに気づかせる */
+.field-strong input {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  border-color: var(--accent);
+  background: var(--accent-wash);
 }
 
 .no-name-note,
 .legend-note,
 .summary-caveat,
 .version-note {
-  font-size: 0.78rem;
-  color: var(--muted);
-  margin: 8px 0 0;
+  font-size: 0.75rem;
+  color: var(--ink-3);
+  margin: var(--s3) 0 0;
 }
 
 .inline-toggle {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.82rem;
-  margin-top: 8px;
+  font-size: 0.8125rem;
+  margin-top: var(--s3);
 }
 
 .notice {
-  margin: 8px 0 0;
+  margin: var(--s3) 0 0;
   padding: 6px 10px;
   background: var(--warn-bg);
   border-left: 3px solid var(--warn);
-  font-size: 0.82rem;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 0.8125rem;
 }
 
-/* ---------- スコアシート ---------- */
+/* ============================================================
+   スコアシート — 入力画面の主役
+   ============================================================ */
 
 .score-sheet {
   width: 100%;
   border-collapse: collapse;
-  font-variant-numeric: tabular-nums;
 }
 
 .score-sheet caption {
   text-align: left;
-  font-size: 0.95rem;
-  font-weight: 600;
-  margin: 20px 0 8px;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  margin: 0 0 var(--s2);
+  padding-bottom: var(--s2);
+  border-bottom: 1px solid var(--rule);
 }
 
 .score-sheet th,
 .score-sheet td {
-  border-bottom: 1px solid var(--line);
-  padding: 1px 6px;
-  font-size: 0.88rem;
+  border-bottom: 1px solid var(--rule);
+  padding: 2px 8px;
+  font-size: 0.875rem;
   text-align: left;
 }
 
-.score-sheet thead th {
-  font-size: 0.74rem;
-  color: var(--muted);
+/* 由来で列をまとめる。3列はチャートが決め、2列は検者が打ち、2列は算出される */
+.score-sheet .group-head th {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  text-transform: none;
+  padding: 0 8px 2px;
+  border-bottom: none;
+  text-align: left;
+}
+
+.score-sheet .group-head th[data-group="entry"] {
+  color: var(--accent);
+}
+
+.score-sheet .group-head th[data-group="derived"] {
+  color: var(--ink-3);
+  text-align: right;
+}
+
+.score-sheet .group-rule {
+  border-left: 1px solid var(--rule);
+}
+
+.score-sheet thead .col-head th {
+  font-size: 0.6875rem;
+  color: var(--ink-3);
   font-weight: 600;
-  border-bottom: 2px solid var(--line);
+  border-bottom: 1.5px solid var(--rule-2);
   padding-bottom: 4px;
+  white-space: nowrap;
 }
 
 .score-sheet .num {
@@ -278,44 +654,87 @@ h2 {
 }
 
 .score-sheet .muted {
-  color: var(--muted);
+  color: var(--ink-3);
 }
 
-.score-sheet .cpm {
+.score-sheet .col-index {
+  color: var(--ink-3);
+  font-size: 0.75rem;
+  width: 1.5rem;
+}
+
+.score-sheet .col-logmar {
   font-weight: 600;
 }
 
-.row-touched {
+/* 算出された cpm は、検者がその場で再測定を判断するために見ている値である */
+.score-sheet .cpm {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--accent-ink);
+  width: 4rem;
+}
+
+.row td {
+  transition: background-color 80ms ease;
+}
+
+.row-touched td {
   background: var(--touched-bg);
 }
 
-.row-focused {
+/* いま打っている行。左端の帯で、視線を戻したときに一目で見つかるようにする */
+.row-focused td {
   background: var(--focus-bg);
 }
 
-.row-error,
-.row-error.row-touched {
+.row-focused td:first-child {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.row-error td,
+.row-error.row-touched td {
   background: var(--error-bg);
+}
+
+.row-error td:first-child {
+  box-shadow: inset 3px 0 0 var(--error);
+}
+
+/* 未提示の行は10行以上並ぶ。目を引かないところまで落とす */
+.row-idle td {
+  color: var(--ink-3);
+}
+
+.row-idle .cell:not(:disabled) {
+  border-color: var(--rule);
+  background: transparent;
 }
 
 .cell {
   font: inherit;
-  font-size: 0.9rem;
-  width: 5.5rem;
-  padding: 3px 6px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  width: 5.25rem;
+  padding: 4px 8px;
+  min-height: 32px;
   text-align: right;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  font-variant-numeric: tabular-nums;
-  background: #fff;
+  border: 1px solid var(--rule-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
 }
 
 .cell-narrow {
   width: 3.5rem;
 }
 
+.cell:hover:not(:disabled) {
+  border-color: #a9b1bd;
+}
+
 .cell:disabled {
-  background: #f3f4f6;
+  background: transparent;
   color: transparent;
   border-color: transparent;
 }
@@ -323,129 +742,185 @@ h2 {
 .cell:focus {
   outline: 2px solid var(--accent);
   outline-offset: 0;
+  background: var(--surface);
 }
 
 .cell[aria-invalid="true"] {
   border-color: var(--error);
-  background: #fff;
+  background: var(--surface);
 }
+
+/* ---------- 状態の印 ---------- */
 
 .status-cell {
   position: relative;
+  text-align: right;
+}
+
+.status-button {
+  font-size: 0.75rem;
+  font-weight: 600;
+  min-height: 26px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border-color: var(--rule);
+  color: var(--ink-2);
+}
+
+.status-button[data-status="read"] {
+  background: var(--accent-wash);
+  border-color: #b9cde8;
+  color: var(--accent-ink);
+}
+
+.status-button[data-status="attempted_unread"],
+.status-button[data-status="skipped_large_unreadable"] {
+  background: var(--error-bg);
+  border-color: #e2b6b3;
+  color: var(--error);
+}
+
+.status-button[data-status="presented_time_missing"],
+.status-button[data-status="skipped_large_assumed_readable"] {
+  background: var(--warn-bg);
+  border-color: #e3cb9c;
+  color: var(--warn);
+}
+
+.status-button[data-status="unpresented_after_stop"] {
+  background: transparent;
+  border-color: var(--rule);
+  color: var(--ink-3);
+  font-weight: 400;
 }
 
 .status-menu {
   position: absolute;
-  z-index: 10;
+  z-index: 40;
   right: 0;
   top: 100%;
-  min-width: 190px;
-  background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  box-shadow: 0 6px 20px rgb(0 0 0 / 18%);
-  padding: 4px;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--rule-2);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgb(16 20 24 / 16%);
+  padding: var(--s1);
 }
 
 .status-option {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--s2);
   width: 100%;
   font: inherit;
-  font-size: 0.82rem;
+  font-size: 0.8125rem;
   text-align: left;
-  padding: 5px 8px;
+  padding: 6px 8px;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: transparent;
+  color: var(--ink);
   cursor: pointer;
 }
 
 .status-option:hover,
 .status-option[aria-selected="true"] {
-  background: var(--focus-bg);
+  background: var(--accent-wash);
 }
 
 .key-hint {
   display: inline-block;
-  min-width: 1.3em;
+  min-width: 1.4em;
   text-align: center;
-  font-size: 0.72rem;
-  border: 1px solid var(--line);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid var(--rule-2);
   border-radius: 3px;
-  color: var(--muted);
+  color: var(--ink-3);
+  background: var(--surface-2);
 }
 
 .row-errors {
   margin: 0;
-  padding: 2px 0 4px 1.2em;
-  font-size: 0.76rem;
+  padding: 3px 0 5px 1.2em;
+  font-size: 0.75rem;
   color: var(--error);
 }
 
-/* ---------- 曲線 ---------- */
+/* ============================================================
+   曲線
+   ============================================================ */
 
 .curve {
   margin: 0;
 }
 
-.curve-controls {
-  display: flex;
-  gap: 14px;
-  font-size: 0.78rem;
-  color: var(--muted);
-  margin-bottom: 6px;
-}
-
-.curve-controls label {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.axis-break {
-  stroke: var(--fg);
-  stroke-width: 1.5;
-}
-
 .curve svg {
+  display: block;
   width: 100%;
   height: auto;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: #fff;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
 }
 
 .curve figcaption {
-  font-size: 0.76rem;
-  color: var(--muted);
+  font-size: 0.75rem;
+  color: var(--ink-3);
   margin-top: 6px;
+  line-height: 1.5;
 }
 
+/* 主目盛と補助目盛。補助（対数の 2〜9）は形の読み取りを助ける程度に留める */
 .grid {
-  stroke: #eef0f3;
+  stroke: #e3e7ec;
+  stroke-width: 1;
+}
+
+.grid-minor {
+  stroke: #f0f2f6;
+  stroke-width: 1;
+}
+
+.grid-vertical {
+  stroke: #eef0f4;
   stroke-width: 1;
 }
 
 .axis {
-  stroke: var(--fg);
+  stroke: #8d95a1;
   stroke-width: 1;
 }
 
+.axis-break {
+  stroke: #8d95a1;
+  stroke-width: 1.5;
+}
+
+.zero-band {
+  fill: var(--surface-2);
+}
+
 .tick {
-  font-size: 11px;
-  fill: var(--muted);
+  font-size: 11.5px;
+  fill: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.tick-major {
+  fill: var(--ink-2);
 }
 
 .axis-label {
   font-size: 12px;
-  fill: var(--fg);
+  fill: var(--ink-2);
 }
 
 .curve-line {
   stroke: var(--accent);
-  stroke-width: 2;
+  stroke-width: 2.25;
+  stroke-linejoin: round;
+  stroke-linecap: round;
 }
 
 .point {
@@ -459,15 +934,60 @@ h2 {
 .point-focused {
   fill: var(--accent);
   stroke: #fff;
-  stroke-width: 2;
+  stroke-width: 2.5;
 }
 
-/* ---------- 検証結果・要約 ---------- */
+.curve-title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--ink-2);
+  margin-bottom: var(--s1);
+}
 
-.issue-list {
-  margin: 0;
-  padding-left: 1.2em;
-  font-size: 0.82rem;
+/*
+ * 入力欄の列は中身の幅まで詰める。
+ *
+ * 表を100%幅にすると余りが時間欄と誤り欄のあいだに落ち、続けて打つ2つの欄が
+ * 遠く離れる。余りは状態欄（＝めったに触らない列）に寄せるのが正しい。
+ */
+.score-sheet .cell-td {
+  width: 1%;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* ============================================================
+   検証結果
+   ============================================================ */
+
+.issues {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+.issue-block {
+  border: 1px solid var(--rule);
+  border-left-width: 4px;
+  border-radius: var(--radius-sm);
+  padding: var(--s2) var(--s3);
+}
+
+.issue-block-error {
+  border-color: #e2b6b3;
+  border-left-color: var(--error);
+  background: var(--error-bg);
+}
+
+.issue-block-warn {
+  border-color: #eddcb8;
+  border-left-color: var(--warn);
+  background: var(--warn-bg);
+}
+
+.issues h2 {
+  font-size: 0.8125rem;
+  margin: 0 0 var(--s1);
 }
 
 .issues-error-title {
@@ -478,82 +998,186 @@ h2 {
   color: var(--warn);
 }
 
+.issue-list {
+  margin: 0;
+  padding-left: 1.2em;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
 .issue-list-error li {
   color: var(--error);
 }
 
 .issue-list-warn li {
-  color: var(--warn);
+  color: #6f4400;
 }
 
+/* ============================================================
+   読み値（自動参考値・判定結果）
+   値には必ず算出法を並べる（ADR-0006）。ラベルと値は同じ行から離さない
+   ============================================================ */
+
 .summary-list {
-  margin: 8px 0 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+.readout {
   display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 6px 14px;
-  font-size: 0.88rem;
+  gap: 2px;
+}
+
+.readout + .readout {
+  padding-top: var(--s3);
+  border-top: 1px solid var(--rule);
 }
 
 .summary-list dt {
-  color: var(--muted);
-  font-size: 0.8rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
 }
 
 .summary-list dd {
   margin: 0;
 }
 
+.readout-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.readout-unit {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+
+.readout-empty {
+  font-size: 1.25rem;
+  color: var(--ink-3);
+}
+
+/* 算出法つきの値の並び。左＝算出法、右＝値 */
 .method-list {
   margin: 0;
   padding: 0;
   list-style: none;
+  display: grid;
+  gap: 2px;
 }
 
 .method-list li {
-  margin-bottom: 3px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--s2);
+  padding: 3px 0;
+}
+
+.method-list li + li {
+  border-top: 1px dotted var(--rule);
 }
 
 .method-id {
-  display: inline-block;
-  min-width: 15em;
-  font-size: 0.76rem;
-  color: var(--muted);
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+  min-width: 0;
+}
+
+.method-value {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.method-value-none {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--ink-3);
+  text-align: right;
+  max-width: 18ch;
+  white-space: normal;
+}
+
+/* 主値だけが濃い。併記の自動値と見分けがつかないと ADR-0006 が形骸化する */
+.method-list li[data-selected="true"] .method-value {
+  color: var(--accent-ink);
+}
+
+.method-list li[data-selected="true"] .method-id {
+  font-weight: 700;
+  color: var(--ink);
 }
 
 .detail {
   display: block;
-  font-size: 0.76rem;
-  color: var(--muted);
+  font-size: 0.75rem;
+  color: var(--ink-3);
+  line-height: 1.45;
 }
 
 .detail.warn {
   color: var(--warn);
 }
 
+.method-list .detail {
+  grid-column: 1 / -1;
+  margin-top: -2px;
+}
+
 .blocked-note {
-  font-size: 0.85rem;
+  font-size: 0.875rem;
   color: var(--error);
   background: var(--error-bg);
-  padding: 8px 10px;
-  border-radius: 4px;
+  border: 1px solid #e2b6b3;
+  border-left: 4px solid var(--error);
+  padding: var(--s2) var(--s3);
+  border-radius: var(--radius-sm);
+  margin: 0;
 }
 
 .review-flag {
-  font-size: 0.8rem;
-  color: var(--warn);
+  font-size: 0.8125rem;
+  color: #6f4400;
   background: var(--warn-bg);
-  padding: 6px 10px;
-  border-radius: 4px;
+  border: 1px solid #eddcb8;
+  border-left: 4px solid var(--warn);
+  padding: var(--s2) var(--s3);
+  border-radius: var(--radius-sm);
+  margin-top: var(--s3);
 }
 
-/* ---------- 凡例 ---------- */
+.review-flag p {
+  margin: 0 0 var(--s1);
+  font-weight: 700;
+  color: var(--warn);
+}
+
+.review-flag ul {
+  margin: 0;
+  padding-left: 1.2em;
+  line-height: 1.5;
+}
+
+/* ============================================================
+   キー操作の凡例
+   ============================================================ */
 
 .legend-list {
   margin: 0;
   display: grid;
   grid-template-columns: max-content 1fr;
-  gap: 3px 12px;
-  font-size: 0.8rem;
+  gap: 4px var(--s3);
+  font-size: 0.8125rem;
 }
 
 .legend-row {
@@ -562,64 +1186,27 @@ h2 {
 
 .legend-list dd {
   margin: 0;
-  color: var(--muted);
+  color: var(--ink-2);
 }
 
 kbd {
-  font-family: ui-monospace, "SFMono-Regular", monospace;
-  font-size: 0.75rem;
-  border: 1px solid var(--line);
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  border: 1px solid var(--rule-2);
   border-bottom-width: 2px;
-  border-radius: 4px;
-  padding: 1px 5px;
-  background: #fafbfc;
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+  background: var(--surface-2);
+  color: var(--ink-2);
   white-space: nowrap;
-}
-
-h3 {
-  font-size: 0.82rem;
-  margin: 14px 0 6px;
 }
 
 .legend-statuses {
   margin: 0;
   padding-left: 1.4em;
-  font-size: 0.8rem;
-  color: var(--muted);
-}
-
-/* ============================================================
-   画面の切り替え（入力 / 判定 / 出力）
-   ============================================================ */
-
-.app-tabs {
-  display: flex;
-  gap: 4px;
-  margin: 10px 0 0;
-  border-bottom: 1px solid var(--line);
-}
-
-.tab {
-  font: inherit;
-  font-size: 0.9rem;
-  padding: 6px 18px;
-  border: 1px solid var(--line);
-  border-bottom: none;
-  border-radius: 5px 5px 0 0;
-  background: #f4f6f9;
-  color: var(--muted);
-  cursor: pointer;
-}
-
-.tab-active {
-  background: #fff;
-  color: var(--fg);
-  font-weight: 600;
-  box-shadow: inset 0 3px 0 var(--accent);
-}
-
-.app-body-single {
-  display: block;
+  font-size: 0.8125rem;
+  color: var(--ink-2);
 }
 
 /* ============================================================
@@ -634,23 +1221,36 @@ h3 {
 }
 
 .mrs-line {
-  stroke: #1f7a4d;
+  stroke: var(--plateau);
   stroke-width: 2;
-  stroke-dasharray: 2 3;
+  stroke-dasharray: 3 3;
 }
 
+/*
+ * 判定線の札。
+ *
+ * 白フチ（paint-order: stroke）は使わない。Chrome は縁取り文字を PDF に
+ * 「塗り」と「線」の2回で書き出すため、A4 レポートのテキスト層が
+ * 「CPS 1..40（（目視））」のように二重になる。患者に渡す紙から文字を
+ * 拾えなくなるのは、見栄えより重い。目盛線は十分に淡いので、フチなしでも読める。
+ */
 .overlay-label {
-  font-size: 11px;
+  font-size: 11.5px;
+  font-weight: 600;
   fill: var(--accent);
 }
 
+.overlay-label-mrs {
+  fill: var(--plateau);
+}
+
 .cps-region {
-  fill: rgba(28, 79, 143, 0.06);
+  fill: rgb(23 69 127 / 6%);
 }
 
 /* 自動値の暫定表示は、検者の判定と見分けがつくよう薄くする */
 .cps-region-auto {
-  fill: rgba(107, 114, 128, 0.05);
+  fill: rgb(107 116 128 / 5%);
 }
 
 .cps-handle {
@@ -659,7 +1259,7 @@ h3 {
 }
 
 .cps-handle:focus-visible {
-  fill: rgba(28, 79, 143, 0.12);
+  fill: rgb(23 69 127 / 12%);
   outline: 2px solid var(--accent);
 }
 
@@ -690,7 +1290,7 @@ h3 {
 .point-excluded,
 .point-outside.point-excluded {
   fill: none;
-  stroke: var(--muted);
+  stroke: var(--ink-3);
   stroke-width: 2;
   stroke-dasharray: 2 2;
 }
@@ -698,18 +1298,18 @@ h3 {
 .curve-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 16px;
+  gap: var(--s1) var(--s4);
   margin: 6px 0 0;
   padding: 0;
   list-style: none;
-  font-size: 0.76rem;
-  color: var(--muted);
+  font-size: 0.75rem;
+  color: var(--ink-2);
 }
 
 .curve-legend li {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--s1);
 }
 
 /* `.curve svg`（枠線つき・全幅）より詳細度を高くしないと凡例の印が枠で囲まれる */
@@ -722,14 +1322,164 @@ h3 {
   background: none;
 }
 
+.judgement-state {
+  font-size: 0.85rem;
+  margin: 0;
+  padding: var(--s2) var(--s3);
+  background: var(--accent-wash);
+  border: 1px solid #c8d8ee;
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius-sm);
+}
+
+.judgement-state[data-judged="false"] {
+  background: var(--warn-bg);
+  border-color: #eddcb8;
+  border-left-color: var(--warn);
+}
+
+.judgement-actions,
+.output-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  align-items: center;
+  margin: var(--s3) 0 0;
+}
+
+.card-head .output-actions {
+  margin: 0;
+}
+
+.badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  vertical-align: 1px;
+}
+
+.override-reason {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink-3);
+  margin-top: var(--s2);
+}
+
+.override-reason textarea,
+.emr-text {
+  display: block;
+  width: 100%;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--ink);
+  margin-top: var(--s1);
+  padding: var(--s2);
+  border: 1px solid var(--rule-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  resize: vertical;
+}
+
+.override-reason textarea:disabled {
+  background: var(--surface-2);
+  color: var(--ink-3);
+}
+
+.emr-text {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.6;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.exclusions {
+  margin-top: var(--s4);
+  font-size: 0.85rem;
+  border-top: 1px solid var(--rule);
+  padding-top: var(--s3);
+}
+
+.exclusions summary {
+  cursor: pointer;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+
+.exclusion-list {
+  list-style: none;
+  margin: var(--s2) 0 0;
+  padding: 0;
+}
+
+.exclusion-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+  padding: 3px 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.exclusion-list label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.exclusion-reason {
+  font: inherit;
+  font-size: 0.8125rem;
+  flex: 1 1 200px;
+  padding: 3px 7px;
+  border: 1px solid var(--rule-2);
+  border-radius: var(--radius-sm);
+}
+
+/* ============================================================
+   出力
+   ============================================================ */
+
+.app-body-single {
+  display: block;
+  max-width: 1000px;
+  margin-inline: auto;
+}
+
+.output-block + .output-block {
+  margin-top: var(--s5);
+}
+
+.output-block h3 {
+  margin-top: 0;
+}
+
+/* 印刷結果の姿がそのまま見えるように、プレビューは紙として置く */
+.paper-preview {
+  margin-top: var(--s3);
+  padding: var(--s5);
+  background: var(--surface-3);
+  border-radius: var(--radius);
+  overflow-x: auto;
+}
+
 .import-error,
 .import-warn {
   flex-basis: 100%;
-  margin: 6px 0 0;
+  margin: var(--s2) 0 0;
   padding: 6px 10px;
-  font-size: 0.82rem;
+  font-size: 0.8125rem;
   background: var(--warn-bg);
   border-left: 3px solid var(--warn);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
 
 .import-error {
@@ -753,218 +1503,202 @@ h3 {
   cursor: pointer;
 }
 
-.curve-secondary svg {
-  max-height: 220px;
-}
-
-.curve-title {
-  font-size: 0.85rem;
-  font-weight: 600;
-  margin-bottom: 2px;
-}
-
-.judgement h3 {
-  margin-top: 16px;
-}
-
-.judgement-state {
-  font-size: 0.85rem;
-  padding: 8px 10px;
-  background: var(--touched-bg);
-  border-left: 3px solid var(--accent);
-}
-
-.judgement-state[data-judged="false"] {
-  background: var(--warn-bg);
-  border-left-color: var(--warn);
-}
-
-.judgement-actions,
-.output-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-  margin: 8px 0;
-}
-
-.judgement-actions button,
-.output-actions button {
-  font: inherit;
-  font-size: 0.85rem;
-  padding: 5px 12px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  background: #fff;
-  cursor: pointer;
-}
-
-.judgement-actions button:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-.badge {
-  display: inline-block;
-  margin-left: 6px;
-  padding: 0 6px;
-  border-radius: 9px;
-  background: var(--accent);
-  color: #fff;
-  font-size: 0.7rem;
-}
-
-.override-reason {
-  display: block;
-  font-size: 0.8rem;
-  color: var(--muted);
-}
-
-.override-reason textarea,
-.emr-text {
-  display: block;
-  width: 100%;
-  font: inherit;
-  font-size: 0.82rem;
-  margin-top: 4px;
-  padding: 6px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-}
-
-.emr-text {
-  font-family: ui-monospace, "SFMono-Regular", monospace;
-  font-size: 0.78rem;
-  line-height: 1.45;
-}
-
-.exclusions {
-  margin-top: 16px;
-  font-size: 0.85rem;
-}
-
-.exclusion-list {
-  list-style: none;
-  margin: 6px 0 0;
-  padding: 0;
-}
-
-.exclusion-list li {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  padding: 2px 0;
-}
-
-.exclusion-reason {
-  font: inherit;
-  font-size: 0.8rem;
-  flex: 1 1 200px;
-  padding: 2px 6px;
-  border: 1px solid var(--line);
-  border-radius: 3px;
-}
-
 /* ============================================================
-   出力
-   ============================================================ */
+   A4 レポート（患者・支援者に渡す紙）
 
-.output-block {
-  margin-top: 20px;
-  padding-top: 12px;
-  border-top: 1px solid var(--line);
-}
-
-.output-block h3 {
-  margin-top: 0;
-}
-
-/* ============================================================
-   A4 レポート
+   画面上でも紙の寸法で組む。検者が渡す前に見る姿と、刷り上がる姿を
+   一致させるためである。
    ============================================================ */
 
 .report {
-  max-width: 190mm;
-  margin: 12px 0;
-  padding: 14mm 12mm;
-  border: 1px solid var(--line);
+  width: 210mm;
+  max-width: 100%;
+  min-height: 297mm;
+  margin: 0 auto;
+  /* 上端はレターヘッド・院印のために空けておく（施設名欄は設けない） */
+  padding: 24mm 15mm 14mm;
   background: #fff;
+  color: #000;
+  border: 1px solid var(--rule-2);
+  box-shadow: 0 2px 12px rgb(16 20 24 / 12%);
+  font-size: 10.5pt;
+  line-height: 1.55;
+}
+
+.report-header {
+  border-bottom: 1.5pt solid #000;
+  padding-bottom: 2.5mm;
 }
 
 .report h1 {
-  font-size: 1.4rem;
-  margin: 0 0 4px;
-}
-
-.report h2 {
-  font-size: 1rem;
-  margin: 0 0 6px;
-  padding-bottom: 3px;
-  border-bottom: 1px solid var(--line);
-}
-
-.report-section {
-  margin-top: 18px;
-}
-
-.report-meta {
+  font-family: var(--font-mincho);
+  font-size: 18pt;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   margin: 0;
-  font-size: 0.9rem;
-  color: var(--muted);
+  line-height: 1.25;
+}
+
+.report-lede {
+  margin: 1mm 0 0;
+  font-size: 9.5pt;
+  color: #333;
+}
+
+/* 検査条件は文章にせず、拾える表にする。診療記録に転記されることを想定する */
+.report-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin: 3mm 0 0;
+  border: 0.75pt solid #9aa1ac;
+  font-size: 9.5pt;
+}
+
+.report-meta div {
+  display: flex;
+  align-items: baseline;
+  gap: 2mm;
+  padding: 1.2mm 3mm;
+  border-right: 0.75pt solid #cfd4db;
+  border-bottom: 0.75pt solid #cfd4db;
+  min-width: 0;
+}
+
+.report-meta div:nth-child(3n) {
+  border-right: none;
+}
+
+.report-meta div:nth-last-child(-n + 3) {
+  border-bottom: none;
+}
+
+.report-meta dt {
+  flex: none;
+  font-size: 8pt;
+  letter-spacing: 0.08em;
+  color: #555;
+}
+
+.report-meta dd {
+  margin: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
 }
 
 .report-noname {
-  margin: 4px 0 0;
-  font-size: 0.78rem;
-  color: var(--muted);
+  margin: 2mm 0 0;
+  font-size: 8.5pt;
+  color: #555;
 }
+
+.report-section {
+  margin-top: 7mm;
+}
+
+/*
+ * 紙面の下半分は2段。
+ *
+ * 1段だと推奨サイズ・実物大見本・曲線が A4 に収まらず、曲線が2枚目へ落ちる。
+ * 曲線は必須項目（SPEC §8.2.2）なので、収まる組み方のほうを変える。
+ * 推奨サイズが出ない検査では図が全幅に戻る。
+ */
+.report-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 8mm;
+  align-items: start;
+}
+
+.report-columns > :only-child {
+  grid-column: 1 / -1;
+}
+
+.report h2 {
+  font-size: 11.5pt;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin: 0 0 2mm;
+  padding-bottom: 1mm;
+  border-bottom: 0.75pt solid #9aa1ac;
+  color: #000;
+}
+
+/* ---------- 判読3ゾーン ---------- */
 
 .zone-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.92rem;
+  font-size: 10pt;
 }
 
 .zone-table th,
 .zone-table td {
-  border: 1px solid var(--line);
-  padding: 6px 8px;
+  border: 0.75pt solid #b6bcc5;
+  padding: 1.7mm 3mm;
   text-align: left;
 }
 
 .zone-table thead th {
-  background: #f4f6f9;
-  font-size: 0.82rem;
+  background: #eef0f3;
+  font-size: 8.5pt;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding-block: 1.4mm;
+  color: #333;
+}
+
+.zone-table .zone-num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.zone-table th[scope="row"] {
+  font-size: 11pt;
+  font-weight: 700;
+  white-space: nowrap;
+  width: 1%;
 }
 
 /* 3帯は色ではなく左端の太さでも区別できるようにする（白黒印刷・色覚特性） */
 .zone-unreadable th[scope="row"] {
-  border-left: 6px solid #9aa1ac;
+  border-left: 2.5mm solid #9aa1ac;
 }
 
 .zone-effortful th[scope="row"] {
-  border-left: 6px solid var(--warn);
+  border-left: 2.5mm solid #8a5300;
 }
 
 .zone-comfortable th[scope="row"] {
-  border-left: 6px solid #1f7a4d;
+  border-left: 2.5mm solid #0f6b4f;
 }
 
 .zone-row[data-empty="true"] {
-  color: var(--muted);
+  color: #6b7480;
 }
 
+/* ---------- 推奨サイズ（ゾーンとは別枠・ADR-0013） ---------- */
+
 .support-list {
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 6px 14px;
   margin: 0;
-  font-size: 0.92rem;
+  border: 0.75pt solid #b6bcc5;
+}
+
+.support-item {
+  padding: 2mm 3.5mm;
+  min-width: 0;
+}
+
+.support-item + .support-item {
+  border-top: 0.75pt solid #cfd4db;
 }
 
 .support-list dt {
-  color: var(--muted);
+  font-size: 8.5pt;
+  letter-spacing: 0.06em;
+  color: #555;
 }
 
 .support-list dd {
@@ -972,35 +1706,193 @@ h3 {
 }
 
 .support-list strong {
-  font-size: 1.15rem;
+  font-size: 19pt;
+  font-weight: 700;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.support-unit {
+  font-size: 10pt;
+  font-weight: 600;
+  margin-left: 1mm;
 }
 
 .support-list .detail {
   display: block;
+  font-size: 8.5pt;
+  color: #444;
+  line-height: 1.45;
+  margin-top: 0.6mm;
+}
+
+/*
+ * 実物大の見本。
+ *
+ * 「35 ポイント」は、患者にも支援者にも大きさとして伝わらない。紙の上で
+ * 実寸を出すのが最短である。pt は物理単位なので、印刷倍率が 100% なら
+ * そのまま正しい大きさになる——その前提が崩れていないことを、下の 50mm
+ * 目盛りで受け取った側が確かめられるようにしてある。
+ */
+.specimen {
+  margin: 3mm 0 0;
+  border: 0.75pt solid #b6bcc5;
+  padding: 2mm 3.5mm 2.5mm;
+}
+
+.specimen-head {
+  font-size: 8.5pt;
+  letter-spacing: 0.06em;
+  color: #555;
+  margin: 0 0 1mm;
+}
+
+/* 推奨値が大きい患者では横に並ばなくなる。そのときは折り返して縦に積む */
+.specimen-rows {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 2mm 7mm;
+  overflow: hidden;
+}
+
+.specimen-item {
+  display: flex;
+  align-items: flex-end;
+  gap: 2.5mm;
+  white-space: nowrap;
+}
+
+.specimen-label {
+  flex: none;
+  font-size: 8.5pt;
+  color: #555;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+}
+
+.specimen-label b {
+  display: block;
+  font-size: 10pt;
+  color: #000;
+}
+
+/* チャートと同じ明朝で刷る。測ったときの字がそのまま見本になる */
+.specimen-text {
+  font-family: var(--font-mincho);
+  line-height: 1;
+  color: #000;
+}
+
+/* 目盛りは段幅の大半を占める。註は横に並べず下に置く */
+.specimen-scale {
+  margin-top: 2mm;
+  padding-top: 1.5mm;
+  border-top: 0.5pt solid #cfd4db;
+}
+
+.specimen-ruler {
+  display: block;
+  width: 50mm;
+  height: 3.5mm;
+  border: 0.75pt solid #000;
+  border-top: none;
+  background-image: repeating-linear-gradient(
+    to right,
+    #000 0,
+    #000 0.75pt,
+    transparent 0.75pt,
+    transparent 10mm
+  );
+  background-size: 10mm 1.8mm;
+  background-repeat: repeat-x;
+  background-position: left bottom;
+}
+
+.specimen-scale-note {
+  font-size: 8pt;
+  color: #444;
+  line-height: 1.4;
+  margin: 1mm 0 0;
 }
 
 .report-note {
-  font-size: 0.82rem;
-  color: var(--muted);
+  font-size: 9pt;
+  color: #333;
+  margin: 2mm 0 0;
+  line-height: 1.55;
 }
 
 .report-warn {
-  font-size: 0.85rem;
-  padding: 6px 10px;
-  background: var(--warn-bg);
-  border-left: 4px solid var(--warn);
+  font-size: 9.5pt;
+  margin: 2.5mm 0 0;
+  padding: 2mm 3mm;
+  background: #fff5e3;
+  border-left: 1mm solid #8a5300;
+}
+
+.report-figure figcaption {
+  color: #333;
+  font-size: 8.5pt;
+}
+
+.report-figure .curve svg {
+  border-color: #b6bcc5;
+}
+
+/*
+ * 2段に組んだときの図は段幅（約85mm）まで縮む。SVG は viewBox ごと縮小される
+ * ので、画面と同じ字送りだと目盛が 4pt 相当になり読めない。図の中だけ文字と線を
+ * 太らせ、刷り上がりで 7pt 前後に着地させる。
+ *
+ * 推奨サイズが出ない検査では図が全幅（:only-child）に戻り、縮小が効かない。
+ * そのときに同じ拡大をかけると今度は目盛が大きすぎるので、2段のときだけに絞る。
+ */
+.report-figure:not(:only-child) .tick,
+.report-figure:not(:only-child) .axis-label,
+.report-figure:not(:only-child) .overlay-label {
+  font-size: 18px;
+}
+
+.report-figure:not(:only-child) .curve-line {
+  stroke-width: 3;
+}
+
+.report-figure:not(:only-child) .cps-line,
+.report-figure:not(:only-child) .mrs-line {
+  stroke-width: 2.75;
+}
+
+.report-figure:not(:only-child) .axis {
+  stroke-width: 1.5;
+}
+
+.report-figure .curve-legend {
+  color: #333;
+  font-size: 8.5pt;
 }
 
 .report-footer {
-  margin-top: 18px;
-  padding-top: 8px;
-  border-top: 1px solid var(--line);
-  font-size: 0.78rem;
-  color: var(--muted);
+  margin-top: 7mm;
+  padding-top: 2.5mm;
+  border-top: 0.75pt solid #9aa1ac;
+  font-size: 8.5pt;
+  color: #333;
+  line-height: 1.5;
 }
 
 .report-footer p {
-  margin: 3px 0;
+  margin: 1mm 0 0;
+}
+
+.report-footer p:first-child {
+  margin-top: 0;
+}
+
+.report-version {
+  font-variant-numeric: tabular-nums;
+  color: #555;
 }
 
 /* ============================================================
@@ -1013,7 +1905,16 @@ h3 {
 @media print {
   @page {
     size: A4 portrait;
-    margin: 12mm;
+    /* 上端はレターヘッド・院印のために広くとる */
+    margin: 20mm 15mm 10mm;
+  }
+
+  :root {
+    font-size: 16px;
+  }
+
+  body {
+    background: #fff;
   }
 
   .no-print {
@@ -1025,12 +1926,27 @@ h3 {
     padding: 0;
   }
 
-  .report {
+  .app-body-single {
     max-width: none;
+  }
+
+  .paper-preview {
     margin: 0;
-    /* 罫線を紙の端に置くと 1px が刷り落ちる。わずかに内側へ寄せる */
+    padding: 0;
+    background: none;
+    overflow: visible;
+  }
+
+  .report {
+    width: auto;
+    max-width: none;
+    min-height: 0;
+    margin: 0;
+    /* 用紙余白は @page が持つ。ここでは罫線が刷り落ちない程度に内側へ寄せるだけ */
     padding: 0 1mm;
     border: none;
+    box-shadow: none;
+    font-size: 10.5pt;
   }
 
   .output-block {
@@ -1039,35 +1955,31 @@ h3 {
     border: none;
   }
 
-  /* 判読ゾーンの表と図は分割しない。境界が別ページに落ちると読み違える */
+  /* 境界が別ページに落ちると読み違える。表・図・数値の枠は分割しない */
   .zone-table,
   .report-figure,
-  .support-list {
+  .support-list,
+  .specimen,
+  .report-meta {
     break-inside: avoid;
   }
 
-  /*
-   * 図の幅を抑えて A4 1枚に収める。
-   *
-   * 画面と同じ全幅（約186mm）にすると図だけで116mm を占め、`break-inside: avoid`
-   * と相まって図が丸ごと2ページ目へ送られる。患者に渡す紙が2枚になり、しかも
-   * 1枚目の下半分が空く。曲線の形が読めれば足りるので、幅を詰めるのが正しい。
-   */
-  .report-figure svg {
-    display: block;
-    max-width: 132mm;
-    margin: 0 auto;
-    height: auto;
+  .report-section {
+    margin-top: 4mm;
+    break-inside: avoid;
   }
 
-  .report-section {
-    margin-top: 10px;
+  /* 幅は2段組の段が決める。図はその段いっぱいに引き伸ばす */
+  .report-figure svg {
+    display: block;
+    width: 100%;
+    height: auto;
   }
 
   /* 注意書きだけが2枚目に落ちるのを防ぐ。参考値である旨は図と同じ紙にある必要がある */
   .report-footer {
     break-inside: avoid;
-    margin-top: 10px;
+    margin-top: 4mm;
   }
 
   .curve svg {

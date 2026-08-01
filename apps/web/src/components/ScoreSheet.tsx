@@ -216,15 +216,46 @@ export function ScoreSheet({
         {draft.sequenceDirection === "large_to_small" ? "大→小" : "小→大"}の順）
       </caption>
       <thead>
-        <tr>
-          <th scope="col">#</th>
-          <th scope="col">logMAR</th>
-          <th scope="col">補正後</th>
-          <th scope="col">時間（秒）</th>
+        {/*
+          列を由来でまとめる。3列はチャートが決めた値、続く列は検者が記録した値、
+          最後の1列は算出された値である。どれを直せばどれが動くのかが、
+          見出しを見ただけで分かるようにしておく。
+        */}
+        <tr className="group-head">
+          <th scope="colgroup" colSpan={3}>
+            チャート
+          </th>
+          <th
+            scope="colgroup"
+            colSpan={draft.perRowDistance ? 4 : 3}
+            className="group-rule"
+            data-group="entry"
+          >
+            記録
+          </th>
+          <th scope="colgroup" className="group-rule num" data-group="derived">
+            算出
+          </th>
+        </tr>
+        <tr className="col-head">
+          <th scope="col" className="num">
+            #
+          </th>
+          <th scope="col" className="num">
+            logMAR
+          </th>
+          <th scope="col" className="num">
+            補正後
+          </th>
+          <th scope="col" className="group-rule">
+            時間（秒）
+          </th>
           <th scope="col">誤り</th>
           {draft.perRowDistance && <th scope="col">距離（cm）</th>}
-          <th scope="col">cpm</th>
           <th scope="col">状態</th>
+          <th scope="col" className="group-rule num">
+            cpm
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -242,7 +273,7 @@ export function ScoreSheet({
               className={[
                 "row",
                 row.hasError ? "row-error" : "",
-                row.touched ? "row-touched" : "",
+                row.touched ? "row-touched" : "row-idle",
                 rowIndex === focusedRowIndex ? "row-focused" : "",
               ]
                 .filter(Boolean)
@@ -251,11 +282,11 @@ export function ScoreSheet({
               data-row-index={rowIndex}
               data-status={row.status}
             >
-              <td className="num">{position + 1}</td>
-              <td className="num">{formatLogMAR(row.chartLogMAR)}</td>
+              <td className="num col-index">{position + 1}</td>
+              <td className="num col-logmar">{formatLogMAR(row.chartLogMAR)}</td>
               <td className="num muted">{formatLogMAR(row.correctedLogMAR)}</td>
 
-              <td>
+              <td className="group-rule cell-td">
                 <input
                   ref={registerCell(rowIndex, "time")}
                   type="text"
@@ -279,7 +310,7 @@ export function ScoreSheet({
                 />
               </td>
 
-              <td>
+              <td className="cell-td">
                 <input
                   ref={registerCell(rowIndex, "errors")}
                   type="text"
@@ -304,7 +335,7 @@ export function ScoreSheet({
               </td>
 
               {draft.perRowDistance && (
-                <td>
+                <td className="cell-td">
                   <input
                     ref={registerCell(rowIndex, "distance")}
                     type="text"
@@ -328,16 +359,14 @@ export function ScoreSheet({
                 </td>
               )}
 
-              <td className="num cpm" data-testid="cpm-cell">
-                {formatCpm(row.speedCpm)}
-              </td>
-
               <td className="status-cell">
                 <button
                   type="button"
                   className="status-button"
+                  data-status={row.status}
                   aria-haspopup="listbox"
                   aria-expanded={openStatusMenuFor === rowIndex}
+                  aria-label={`${formatLogMAR(row.chartLogMAR)} logMAR の状態：${STATUS_LABEL[row.status]}`}
                   onClick={() =>
                     setOpenStatusMenuFor(openStatusMenuFor === rowIndex ? null : rowIndex)
                   }
@@ -355,7 +384,10 @@ export function ScoreSheet({
                     }}
                   />
                 )}
+              </td>
 
+              <td className="num cpm group-rule" data-testid="cpm-cell">
+                {formatCpm(row.speedCpm)}
               </td>
             </tr>
           );

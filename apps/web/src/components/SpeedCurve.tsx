@@ -38,7 +38,12 @@ import type { RowView } from "../session/derive.js";
 
 const WIDTH = 640;
 const HEIGHT = 400;
-const MARGIN = { top: 16, right: 16, bottom: 48, left: 56 } as const;
+/*
+ * 左余白は縦軸の目盛（最大 "1000"）と軸名を並べて置ける幅。A4 レポートでは図が
+ * 段幅（約85mm）まで縮み、文字を読める大きさに拡大する必要がある。56 では
+ * 拡大した目盛が軸名に重なった。
+ */
+const MARGIN = { top: 16, right: 24, bottom: 48, left: 70 } as const;
 
 const PLOT_WIDTH = WIDTH - MARGIN.left - MARGIN.right;
 const PLOT_HEIGHT = HEIGHT - MARGIN.top - MARGIN.bottom;
@@ -159,6 +164,18 @@ export function SpeedCurve({
     10 ** (bottomExponent + i),
   );
 
+  /*
+   * 補助目盛（各桁の 2〜9）。
+   *
+   * 主目盛だけの対数軸は、点が桁のどのあたりにいるのかを目測させる。プラトーが
+   * 「揃っている」かどうかは、まさにその目測で判断される。線は主目盛より薄くし、
+   * 形の読み取りを助ける以上には出しゃばらせない。
+   */
+  const yMinorTicks: number[] = [];
+  for (let e = bottomExponent; e < topExponent; e += 1) {
+    for (let m = 2; m <= 9; m += 1) yMinorTicks.push(m * 10 ** e);
+  }
+
   /* ---- 折れ線 ---- */
 
   // 0 cpm の点は線に含めない。対数領域と帯をまたぐ線分は傾きに意味を持たない
@@ -245,6 +262,15 @@ export function SpeedCurve({
   /** 右寄りの線のラベルは内側（左）へ出す。描画域からはみ出させない。 */
   const labelOnLeft = (x: number): boolean => x > MARGIN.left + PLOT_WIDTH * 0.6;
 
+  /**
+   * MRS の札を、プラトー区間のどちら端から書き出すか。
+   *
+   * 文字幅で位置を決めると、A4 レポートで図中の字を拡大した瞬間に破綻する
+   * （中央寄せ＋固定の余白では、拡大した札が右端からはみ出した）。
+   * 「区間の内側に向かって伸ばす」なら字の大きさに依存しない。
+   */
+  const mrsLabelAtRightEnd = mrsSpan !== null && labelOnLeft(mrsSpan.x1);
+
   return (
     <figure className="curve">
       <svg
@@ -262,6 +288,29 @@ export function SpeedCurve({
         data-plateau-count={plateauPoints.length}
         data-interactive={interactive}
       >
+        {yMinorTicks.map((cpm) => (
+          <line
+            key={`minor-${cpm}`}
+            className="grid-minor"
+            x1={MARGIN.left}
+            x2={MARGIN.left + PLOT_WIDTH}
+            y1={toY(cpm)}
+            y2={toY(cpm)}
+          />
+        ))}
+
+        {/* 縦の目盛線。どの実測サイズの上に点があるのかを追えるようにする */}
+        {xTicks.map((tick) => (
+          <line
+            key={`v-${tick.chart}`}
+            className="grid-vertical"
+            x1={toX(tick.logMAR)}
+            x2={toX(tick.logMAR)}
+            y1={MARGIN.top}
+            y2={logBottom}
+          />
+        ))}
+
         {yTicks.map((cpm) => (
           <g key={cpm}>
             <line
@@ -272,7 +321,7 @@ export function SpeedCurve({
               y2={toY(cpm)}
             />
             <text
-              className="tick"
+              className="tick tick-major"
               x={MARGIN.left - 8}
               y={toY(cpm)}
               textAnchor="end"
@@ -285,15 +334,15 @@ export function SpeedCurve({
 
         <g data-testid="zero-band">
           {/* 0 の帯。対数領域と切り離してあることが一目でわかるようにする */}
-          <line
-            className="grid"
-            x1={MARGIN.left}
-            x2={MARGIN.left + PLOT_WIDTH}
-            y1={zeroY}
-            y2={zeroY}
+          <rect
+            className="zero-band"
+            x={MARGIN.left}
+            y={zeroY - ZERO_ROW_HEIGHT / 2}
+            width={PLOT_WIDTH}
+            height={ZERO_ROW_HEIGHT}
           />
           <text
-            className="tick"
+            className="tick tick-major"
             x={MARGIN.left - 8}
             y={zeroY}
             textAnchor="end"
@@ -360,6 +409,11 @@ export function SpeedCurve({
         {/*
           判定線のラベル。プラトーは図の右端に寄ることが多く、線の右へ素直に
           置くと文字が描画域からはみ出す。線の位置に応じて内側へ寄せる。
+
+          MRS の札は線の**下**、プラトー区間の中央に置く。以前は線の左端の上に
+          出していたが、プラトーが右上に寄る典型例では CPS の札とちょうど
+          重なって両方読めなくなっていた。上（CPS）と下（MRS）に分ければ、
+          プラトーがどこにあっても衝突しない。
         */}
 
         {/* MRS の水平線。プラトーの範囲にのみ引く */}
@@ -367,10 +421,10 @@ export function SpeedCurve({
           <g data-testid="mrs-line" data-cpm={overlay?.mrsCpm ?? undefined}>
             <line className="mrs-line" x1={mrsSpan.x1} x2={mrsSpan.x2} y1={mrsY} y2={mrsY} />
             <text
-              className="overlay-label"
-              x={mrsSpan.x1 - 6}
-              y={mrsY - 6}
-              textAnchor="end"
+              className="overlay-label overlay-label-mrs"
+              x={mrsLabelAtRightEnd ? mrsSpan.x2 : mrsSpan.x1}
+              y={mrsY + 25}
+              textAnchor={mrsLabelAtRightEnd ? "end" : "start"}
             >
               MRS {formatCpm(overlay?.mrsCpm ?? null)} cpm
             </text>
@@ -488,7 +542,7 @@ export function SpeedCurve({
         </text>
         <text
           className="axis-label"
-          transform={`translate(14 ${MARGIN.top + PLOT_HEIGHT / 2}) rotate(-90)`}
+          transform={`translate(13 ${MARGIN.top + PLOT_HEIGHT / 2}) rotate(-90)`}
           textAnchor="middle"
         >
           読書速度（cpm）
