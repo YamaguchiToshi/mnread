@@ -7,7 +7,7 @@
  *   Enter … 確定して次の行の時間へ（誤り数は既定 0 のまま飛ばせる）
  *   +     … 同じ行の誤り数欄へ
  *   *     … この行を「不読（0 cpm）」に
- *   /     … 状態メニューを開く（1〜6 で選択、Esc で戻る）
+ *   /     … 状態メニューを開く（1〜6 で選択、Esc で戻る。他所を触れば閉じる）
  *   ↑↓   … 上下の行の同じ欄へ
  *
  * 表示する cpm・補正後 logMAR はすべて core の返り値である（ADR-0010）。
@@ -20,6 +20,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type FocusEvent,
   type JSX,
   type KeyboardEvent,
 } from "react";
@@ -121,6 +122,16 @@ export function ScoreSheet({
     },
     [setOpenStatusMenuFor],
   );
+
+  /**
+   * メニューを閉じるだけ。焦点は動かさない。
+   *
+   * 検者が別の欄を触ったときに使う。ここで `closeStatusMenu` と同じように
+   * 焦点を引き戻すと、触った先から焦点を奪い返すことになる。
+   */
+  const dismissStatusMenu = useCallback((): void => {
+    setOpenStatusMenuFor(null);
+  }, [setOpenStatusMenuFor]);
 
   const handleKeyDown = useCallback(
     (rowIndex: number, field: CellField) =>
@@ -382,6 +393,7 @@ export function ScoreSheet({
                       dispatch({ type: "setStatus", row: rowIndex, status });
                       closeStatusMenu(rowIndex);
                     }}
+                    onDismiss={dismissStatusMenu}
                   />
                 )}
               </td>
@@ -425,21 +437,58 @@ export function ScoreSheet({
  *
  * 焦点の移動を描画中ではなく副作用で行うのは、React が描画途中の焦点移動を
  * 警告するためであり、動作上も確定後のほうが素直である。
+ *
+ * **他所を触ったら閉じる。** 選択を促すために開きっぱなしにすると、値を直して
+ * いる最中や誤って開いてしまったときに、メニューが表に覆いかぶさったまま残る。
+ * 閉じ方は2つあり、片方だけでは足りない。
+ *
+ *   - 焦点が外へ出た（`focusout`）… 別の欄をクリックした / Tab で抜けた場合。
+ *     `relatedTarget` が null のときは閉じない。Safari はボタンを押しても焦点を
+ *     移さないため、選択肢の click が届く前に消えてしまう
+ *   - メニューの外を押した（`pointerdown`）… 焦点を持たない場所を押した場合。
+ *     判定は状態セル全体で行う。トグルのボタンを含めておかないと、閉じた直後に
+ *     ボタンの click が開き直して閉じられなくなる
  */
 function StatusMenu({
   currentStatus,
   onKeyDown,
   onSelect,
+  onDismiss,
 }: {
   readonly currentStatus: ItemStatus;
   readonly onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void;
   readonly onSelect: (status: ItemStatus) => void;
+  readonly onDismiss: () => void;
 }): JSX.Element {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     ref.current?.focus();
   }, []);
+
+  useEffect(() => {
+    const onPointerDown = (event: Event): void => {
+      const menu = ref.current;
+      if (menu === null) return;
+      const scope = menu.closest(".status-cell") ?? menu;
+      if (!(event.target instanceof Node) || !scope.contains(event.target)) onDismiss();
+    };
+    // pointerdown が来ない環境のために mousedown も見る。二重に呼ばれても
+    // 閉じるだけなので害はない。
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("mousedown", onPointerDown, true);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("mousedown", onPointerDown, true);
+    };
+  }, [onDismiss]);
+
+  const handleBlur = (event: FocusEvent<HTMLDivElement>): void => {
+    const next = event.relatedTarget;
+    if (next === null) return;
+    const scope = event.currentTarget.closest(".status-cell") ?? event.currentTarget;
+    if (!scope.contains(next)) onDismiss();
+  };
 
   return (
     <div
@@ -449,6 +498,7 @@ function StatusMenu({
       aria-label="読み材料の状態"
       tabIndex={-1}
       onKeyDown={onKeyDown}
+      onBlur={handleBlur}
     >
       {STATUS_ORDER.map((status, i) => (
         <button

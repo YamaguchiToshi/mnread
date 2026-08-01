@@ -48,6 +48,9 @@ export function KeyboardLegend(): JSX.Element {
           </li>
         ))}
       </ol>
+      <p className="legend-note">
+        状態メニューは <kbd>Esc</kbd> か、別の欄を触れば閉じます（状態は変わりません）。
+      </p>
       <p className="legend-note">誤り数は既定 0 なので、通常は時間と Enter だけで進みます。</p>
     </section>
   );

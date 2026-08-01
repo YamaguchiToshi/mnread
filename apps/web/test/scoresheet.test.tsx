@@ -185,6 +185,60 @@ describe("状態メニュー", () => {
     expect(row(0)).toHaveAttribute("data-status", "read");
   });
 
+  it("別の欄をクリックしたら閉じる（焦点は奪い返さない）", async () => {
+    // 値を直している最中や、誤って開いてしまったときに、表に覆いかぶさったまま
+    // 残らないこと。閉じるだけで、触った先から焦点を取り上げない。
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(timeCell("1.30"));
+    await user.keyboard("6.0{Enter}5.8"); // 打ち終えた行を後から触る場面
+    await user.keyboard("/");
+    expect(screen.getByRole("listbox", { name: "読み材料の状態" })).toBeTruthy();
+
+    await user.click(timeCell("1.30"));
+
+    expect(screen.queryByRole("listbox")).toBeNull();
+    expect(timeCell("1.30")).toHaveFocus();
+    // 開いただけでは状態を変えない
+    expect(row(1)).toHaveAttribute("data-status", "read");
+  });
+
+  it("メニューの外を押したら閉じる", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(timeCell("1.30"));
+    await user.keyboard("/");
+    await user.click(screen.getByTestId("score-sheet").querySelector("caption")!);
+
+    expect(screen.queryByRole("listbox")).toBeNull();
+  });
+
+  it("同じ行の状態ボタンで開閉できる（外側判定に巻き込まれない）", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    const button = within(row(0)).getByRole("button", { name: /の状態：/ });
+    await user.click(button);
+    expect(screen.getByRole("listbox", { name: "読み材料の状態" })).toBeTruthy();
+
+    await user.click(button);
+    expect(screen.queryByRole("listbox")).toBeNull();
+  });
+
+  it("クリックで選んだ状態が反映される", async () => {
+    // 選択肢を押すと、閉じる処理に先回りされて click が届かない、という壊れ方を防ぐ。
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(within(row(0)).getByRole("button", { name: /の状態：/ }));
+    await user.click(screen.getByRole("option", { name: /不読/ }));
+
+    expect(row(0)).toHaveAttribute("data-status", "attempted_unread");
+    expect(screen.queryByRole("listbox")).toBeNull();
+  });
+
   it("「時間未記録」の行は時間欄が使えず、誤り数だけを記録する", async () => {
     const user = userEvent.setup();
     render(<App />);
