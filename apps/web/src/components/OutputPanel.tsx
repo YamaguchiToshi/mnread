@@ -29,8 +29,10 @@ export function OutputPanel({ view }: OutputPanelProps): JSX.Element {
 
   if (!view.outcome.ok) {
     return (
-      <section className="output output-blocked" data-testid="output-panel">
-        <h2>出力</h2>
+      <section className="output output-blocked card" data-testid="output-panel">
+        <div className="card-head">
+          <h2>出力</h2>
+        </div>
         <p className="blocked-note">
           入力エラーがあるため出力を作成しません。入力画面で該当行を修正してください。
         </p>
@@ -52,8 +54,6 @@ export function OutputPanel({ view }: OutputPanelProps): JSX.Element {
 
   return (
     <section className="output" data-testid="output-panel">
-      <h2 className="no-print">出力</h2>
-
       {result.requiresReview && (
         <p className="review-flag no-print" data-testid="output-review-warning">
           目視確認を要する点があります。出力前に判定画面をご確認ください。
@@ -61,68 +61,94 @@ export function OutputPanel({ view }: OutputPanelProps): JSX.Element {
       )}
 
       {/* --- 1. 電子カルテ用テキスト --- */}
-      <div className="output-block no-print">
-        <h3>電子カルテ用テキスト</h3>
+      <div className="output-block card no-print">
+        <div className="card-head">
+          <h3>電子カルテ用テキスト</h3>
+          <div className="output-actions">
+            <button
+              type="button"
+              className="btn btn-primary"
+              data-testid="copy-emr"
+              onClick={copyEmrText}
+            >
+              クリップボードにコピー
+            </button>
+            {copied && <span className="detail">コピーしました</span>}
+          </div>
+        </div>
         <p className="detail">
           算出法・測定距離・距離補正を含んだ定型文です。そのまま貼り付けられます。
         </p>
+        {/*
+          全文が一度に見えている必要がある。スクロールさせると、貼り付ける前に
+          目を通すという手順が実際には省かれる。
+        */}
         <textarea
           className="emr-text"
           data-testid="emr-text"
           readOnly
-          rows={20}
+          rows={emrText.split("\n").length + 1}
           value={emrText}
         />
-        <div className="output-actions">
-          <button type="button" data-testid="copy-emr" onClick={copyEmrText}>
-            クリップボードにコピー
-          </button>
-          {copied && <span className="detail">コピーしました</span>}
-        </div>
       </div>
 
       {/* --- 2. A4 レポート --- */}
-      <div className="output-block">
+      <div className="output-block card">
         <div className="no-print">
-          <h3>A4 患者・支援者向けレポート</h3>
-          <p className="detail">
-            氏名は入りません。印刷ダイアログから「PDF として保存」も選べます。
-          </p>
-          <div className="output-actions">
-            <button type="button" data-testid="print-report" onClick={() => window.print()}>
-              印刷 / PDF 保存
-            </button>
+          <div className="card-head">
+            <h3>A4 患者・支援者向けレポート</h3>
+            <div className="output-actions">
+              <button
+                type="button"
+                className="btn btn-primary"
+                data-testid="print-report"
+                onClick={() => window.print()}
+              >
+                印刷 / PDF 保存
+              </button>
+            </div>
           </div>
+          <p className="detail">
+            氏名は入りません。上端はレターヘッド用紙・院印のために空けてあります。
+            推奨サイズの見本は<strong>倍率 100%</strong>で印刷したときに実物大になります
+            （紙面の 50 mm 目盛りで確かめられます）。
+          </p>
         </div>
-        <PatientReport result={result} rows={view.rows} plateauRows={plateauRows} />
+        <div className="paper-preview">
+          <PatientReport result={result} rows={view.rows} plateauRows={plateauRows} />
+        </div>
       </div>
 
       {/* --- 3. 生データ --- */}
-      <div className="output-block no-print">
-        <h3>生データ書き出し</h3>
+      <div className="output-block card no-print">
+        <div className="card-head">
+          <h3>生データ書き出し</h3>
+          <div className="output-actions">
+            <button
+              type="button"
+              className="btn"
+              data-testid="download-json"
+              onClick={() =>
+                downloadFile(`${bundle.fileBaseName}.json`, "application/json", bundle.json)
+              }
+            >
+              JSON をダウンロード
+            </button>
+            <button
+              type="button"
+              className="btn"
+              data-testid="download-csv"
+              onClick={() =>
+                downloadFile(`${bundle.fileBaseName}.csv`, "text/csv", bundle.csv)
+              }
+            >
+              CSV をダウンロード
+            </button>
+          </div>
+        </div>
         <p className="detail">
           氏名を含みません。数値は丸めずフル精度で書き出します（再解析に使えることが条件のため）。
         </p>
-        <div className="output-actions">
-          <button
-            type="button"
-            data-testid="download-json"
-            onClick={() =>
-              downloadFile(`${bundle.fileBaseName}.json`, "application/json", bundle.json)
-            }
-          >
-            JSON をダウンロード
-          </button>
-          <button
-            type="button"
-            data-testid="download-csv"
-            onClick={() =>
-              downloadFile(`${bundle.fileBaseName}.csv`, "text/csv", bundle.csv)
-            }
-          >
-            CSV をダウンロード
-          </button>
-        </div>
       </div>
     </section>
   );

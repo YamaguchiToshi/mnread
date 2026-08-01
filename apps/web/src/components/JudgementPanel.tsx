@@ -33,8 +33,10 @@ export function JudgementPanel({
 }: JudgementPanelProps): JSX.Element {
   if (!view.outcome.ok) {
     return (
-      <section className="judgement judgement-blocked" data-testid="judgement-panel">
-        <h2>判定</h2>
+      <section className="judgement judgement-blocked card" data-testid="judgement-panel">
+        <div className="card-head">
+          <h2>判定</h2>
+        </div>
         <p className="blocked-note">
           入力エラーがあるため判定できません。入力画面で該当行を修正してください。
         </p>
@@ -51,8 +53,11 @@ export function JudgementPanel({
   const curveRows = view.rows.filter((r) => r.speedCpm !== null && r.correctedLogMAR !== null);
 
   return (
-    <section className="judgement" data-testid="judgement-panel">
-      <h2>判定</h2>
+    <section className="judgement card" data-testid="judgement-panel">
+      <div className="card-head">
+        <h2>判定</h2>
+        <span className="detail">入力はプラトー点の選択だけ（ADR-0012）</span>
+      </div>
 
       <p className="judgement-state" data-testid="judgement-state" data-judged={judged}>
         {judged ? (
@@ -71,6 +76,7 @@ export function JudgementPanel({
       <div className="judgement-actions">
         <button
           type="button"
+          className={judged ? "btn" : "btn btn-primary"}
           data-testid="adopt-automatic"
           disabled={view.automaticPlateauRows.length === 0}
           onClick={() => dispatch({ type: "setPlateau", rows: view.automaticPlateauRows })}
@@ -79,6 +85,7 @@ export function JudgementPanel({
         </button>
         <button
           type="button"
+          className="btn"
           data-testid="clear-judgement"
           disabled={!judged}
           onClick={() => dispatch({ type: "setPlateau", rows: null })}
@@ -97,22 +104,30 @@ export function JudgementPanel({
             data-method={estimate.method}
             data-selected={estimate.method === selection.cpsMethod}
           >
-            <span className="method-id">{CPS_METHOD_LABEL[estimate.method]}</span>
-            {estimate.estimable ? (
-              <>
-                {formatLogMAR(estimate.cpsCorrectedLogMAR)} logMAR
-                {estimate.method === selection.cpsMethod && (
-                  <span className="badge">主値</span>
-                )}
-                {estimate.extrapolated && (
-                  <span className="detail warn">外挿推定（通常値として扱わない）</span>
-                )}
+            <span className="method-id">
+              {CPS_METHOD_LABEL[estimate.method]}
+              {estimate.method === selection.cpsMethod && (
+                <span className="badge">主値</span>
+              )}
+              {estimate.estimable && (
                 <span className="detail">
                   プラトー {estimate.plateauItemIndices.length} 点
                 </span>
+              )}
+            </span>
+            {estimate.estimable ? (
+              <>
+                <span className="method-value">
+                  {formatLogMAR(estimate.cpsCorrectedLogMAR)}
+                  {" "}
+                  <span className="readout-unit">logMAR</span>
+                </span>
+                {estimate.extrapolated && (
+                  <span className="detail warn">外挿推定（通常値として扱わない）</span>
+                )}
               </>
             ) : (
-              <span className="detail">
+              <span className="method-value-none">
                 推定不能：{estimate.notEstimableReason ?? "理由不明"}
               </span>
             )}
@@ -125,17 +140,25 @@ export function JudgementPanel({
       <ul className="method-list" data-testid="judgement-mrs">
         {result.mrs.map((mrs) => (
           <li key={mrs.method} data-testid="mrs-result" data-method={mrs.method}>
-            <span className="method-id">{MRS_METHOD_LABEL[mrs.method]}</span>
-            {mrs.valueCpm === null ? (
-              <span className="detail">算出せず：{mrs.notApplicableReason ?? "理由不明"}</span>
-            ) : (
-              <>
-                {formatCpm(mrs.valueCpm)} cpm
+            <span className="method-id">
+              {MRS_METHOD_LABEL[mrs.method]}
+              {mrs.valueCpm !== null && (
                 <span className="detail">
                   n={mrs.n}
                   {mrs.sdCpm === null ? "" : `、SD=${formatCpm(mrs.sdCpm)}`}
                 </span>
-              </>
+              )}
+            </span>
+            {mrs.valueCpm === null ? (
+              <span className="method-value-none">
+                算出せず：{mrs.notApplicableReason ?? "理由不明"}
+              </span>
+            ) : (
+              <span className="method-value">
+                {formatCpm(mrs.valueCpm)}
+                {" "}
+                <span className="readout-unit">cpm</span>
+              </span>
             )}
           </li>
         ))}

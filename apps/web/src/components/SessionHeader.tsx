@@ -17,10 +17,25 @@ export interface SessionHeaderProps {
 
 export function SessionHeader({ draft, dispatch }: SessionHeaderProps): JSX.Element {
   return (
-    <section className="session-header" data-testid="session-header">
-      <h2>検査条件</h2>
+    <section className="session-header card" data-testid="session-header">
+      <div className="card-head">
+        <h2>検査条件</h2>
+        <span className="detail">視距離は全行の補正後 logMAR を動かします</span>
+      </div>
 
       <div className="field-grid">
+        {/* 距離補正の入り口。ここが違うと19行すべての値がずれる */}
+        <label className="field-strong">
+          視距離（cm）
+          <input
+            type="text"
+            inputMode="decimal"
+            value={draft.distanceText}
+            aria-label="視距離（cm）"
+            onChange={(e) => dispatch({ type: "setDistance", text: e.target.value })}
+          />
+        </label>
+
         <label>
           チャート
           <select
@@ -32,17 +47,6 @@ export function SessionHeader({ draft, dispatch }: SessionHeaderProps): JSX.Elem
             <option value="MNREAD-J">MNREAD-J（30文字）</option>
             <option value="MNREAD-Jk">MNREAD-Jk（24文字）</option>
           </select>
-        </label>
-
-        <label>
-          視距離（cm）
-          <input
-            type="text"
-            inputMode="decimal"
-            value={draft.distanceText}
-            aria-label="視距離（cm）"
-            onChange={(e) => dispatch({ type: "setDistance", text: e.target.value })}
-          />
         </label>
 
         <label>

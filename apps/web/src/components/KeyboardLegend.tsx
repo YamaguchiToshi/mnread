@@ -24,8 +24,11 @@ const KEYS: ReadonlyArray<readonly [string, string]> = [
 
 export function KeyboardLegend(): JSX.Element {
   return (
-    <section className="legend" data-testid="keyboard-legend">
-      <h2>キー操作</h2>
+    <section className="legend card" data-testid="keyboard-legend">
+      <div className="card-head">
+        <h2>キー操作</h2>
+        <span className="detail">テンキーだけで19行を打ち切れます</span>
+      </div>
       <dl className="legend-list">
         {KEYS.map(([key, description]) => (
           <div key={key} className="legend-row">

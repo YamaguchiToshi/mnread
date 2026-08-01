@@ -9,6 +9,14 @@
  *   - 参考値であって診断ではない旨と、ポイント値がフォント依存である旨を必ず載せる
  *   - CPS の算出法 ID を必ず併記する（ADR-0006）
  *
+ * 紙面の設計:
+ *   - **上端はレターヘッド用紙と院印のために空ける。** 施設名の欄は設けない。
+ *   - 検査条件は文章に流さず表にする。診療記録へ転記する側が拾えることを優先する。
+ *   - **推奨サイズは実物大の見本を添える。** 「35 ポイント」という数字は、患者にも
+ *     支援者にも大きさとして伝わらない。pt は物理単位なので、印刷倍率さえ 100% なら
+ *     紙の上で正しい大きさになる——その前提が崩れていないことを受け取った側が
+ *     確かめられるよう、50 mm の校正目盛りを併せて刷る。
+ *
  * 印刷は `window.print()` と `@media print` による。SVG がベクタのまま出るため、
  * ラスタ化を伴う手段は用いない（PLAN §2）。
  */
@@ -42,20 +50,41 @@ export function PatientReport({
     <article className="report" data-testid="patient-report">
       <header className="report-header">
         <h1>読書の評価結果</h1>
-        <p className="report-meta" data-testid="report-meta">
-          {input.variant}
-          {input.subject?.subjectId === undefined
-            ? ""
-            : ` / ID ${input.subject.subjectId}`}
-          {input.subject?.testDate === undefined
-            ? ""
-            : ` / ${input.subject.testDate}`}
-          {` / ${EYE_LABEL[input.eye]} / 測定距離 ${formatFixed(input.viewingDistanceCm, 0)} cm`}
-        </p>
-        <p className="report-noname">
-          このシートに氏名は記載していません。ID でご確認ください。
+        <p className="report-lede">
+          MNREAD 読書チャートで、文字の大きさごとに読む速さを測った結果です。
         </p>
       </header>
+
+      {/* 検査条件。文章にすると転記のときに拾い落とすので、表で持たせる */}
+      <dl className="report-meta" data-testid="report-meta">
+        <div>
+          <dt>実施日</dt>
+          <dd>{input.subject?.testDate ?? "—"}</dd>
+        </div>
+        <div>
+          <dt>ID</dt>
+          <dd>{input.subject?.subjectId ?? "—"}</dd>
+        </div>
+        <div>
+          <dt>眼</dt>
+          <dd>{EYE_LABEL[input.eye]}</dd>
+        </div>
+        <div>
+          <dt>チャート</dt>
+          <dd>{input.variant}</dd>
+        </div>
+        <div>
+          <dt>チャート版</dt>
+          <dd>{input.chartVersion === "" ? "—" : input.chartVersion}</dd>
+        </div>
+        <div>
+          <dt>測定距離</dt>
+          <dd>{formatFixed(input.viewingDistanceCm, 0)} cm</dd>
+        </div>
+      </dl>
+      <p className="report-noname">
+        このシートに氏名は記載していません。ID でご確認ください。
+      </p>
 
       {/* --- 判読ゾーン --- */}
       <section className="report-section">
@@ -87,8 +116,8 @@ export function PatientReport({
                   >
                     <th scope="row">{ZONE_SHORT[zone.id]}</th>
                     <td>{ZONE_LABEL[zone.id]}</td>
-                    <td>{pointRange(zone)}</td>
-                    <td>{logMARRange(zone)}</td>
+                    <td className="zone-num">{pointRange(zone)}</td>
+                    <td className="zone-num">{logMARRange(zone)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -111,27 +140,90 @@ export function PatientReport({
         )}
       </section>
 
+      {/*
+        紙面の下半分を2段に割る。
+
+        1段組では推奨サイズ・実物大見本・曲線が A4 に収まらず、曲線だけが2枚目へ
+        送られていた（患者に渡す紙が2枚になり、しかも2枚目はほぼ空く）。曲線は
+        SPEC §8.2.2 の必須項目なので落とせない。「どの大きさを用意するか」と
+        「その根拠になった測定」を左右に並べるのは、読み手にとっても自然である。
+      */}
+      <div className="report-columns">
       {/* --- 推奨サイズ：ゾーンとは別枠（ADR-0013） --- */}
       {support !== null && (
         <section className="report-section" data-testid="support-range">
           <h2>用意するとよい文字の大きさ</h2>
           <dl className="support-list">
-            <dt>下限</dt>
-            <dd>
-              <strong>{formatFixed(support.lowerPoint, 0)} ポイント</strong>
-              <span className="detail">
-                いちばん速く読める大きさの下限です。これより小さいと読む速さが落ちます。
-              </span>
-            </dd>
-            <dt>ゆとりを見る場合</dt>
-            <dd>
-              <strong>{formatFixed(support.upperPoint, 0)} ポイント</strong>
-              <span className="detail">
-                下限の約 {formatFixed(support.marginRatio, 2)} 倍。長く読むときや、
-                照明・体調が変わる場面ではこちらを目安にしてください。
-              </span>
-            </dd>
+            <div className="support-item">
+              <dt>下限</dt>
+              <dd>
+                <strong>{formatFixed(support.lowerPoint, 0)}</strong>
+                <span className="support-unit">ポイント</span>
+                <span className="detail">
+                  いちばん速く読める大きさの下限です。これより小さいと読む速さが落ちます。
+                </span>
+              </dd>
+            </div>
+            <div className="support-item">
+              <dt>ゆとりを見る場合</dt>
+              <dd>
+                <strong>{formatFixed(support.upperPoint, 0)}</strong>
+                <span className="support-unit">ポイント</span>
+                <span className="detail">
+                  下限の約 {formatFixed(support.marginRatio, 2)} 倍。長く読むときや、
+                  照明・体調が変わる場面ではこちらを目安にしてください。
+                </span>
+              </dd>
+            </div>
           </dl>
+
+          {/*
+            実物大の見本。フォントサイズには core が返した値をそのまま渡す
+            （丸めるのは横のラベルだけ。ADR-0003）。
+          */}
+          <div className="specimen" data-testid="specimen">
+            <p className="specimen-head">実物大の見本（この紙を 100% で印刷した場合）</p>
+            <div className="specimen-rows">
+              {/*
+                見本は1文字にする。推奨サイズが大きい患者ほど文字を並べたときの
+                幅が効いてきて、2文字だと紙幅を越えて切れる。大きさを判断するには
+                1文字で足りる。
+              */}
+              <span className="specimen-item">
+                <span className="specimen-label">
+                  下限
+                  <b>{formatFixed(support.lowerPoint, 0)} pt</b>
+                </span>
+                <span
+                  className="specimen-text"
+                  style={{ fontSize: `${String(support.lowerPoint)}pt` }}
+                  aria-hidden="true"
+                >
+                  読
+                </span>
+              </span>
+              <span className="specimen-item">
+                <span className="specimen-label">
+                  ゆとり
+                  <b>{formatFixed(support.upperPoint, 0)} pt</b>
+                </span>
+                <span
+                  className="specimen-text"
+                  style={{ fontSize: `${String(support.upperPoint)}pt` }}
+                  aria-hidden="true"
+                >
+                  読
+                </span>
+              </span>
+            </div>
+            <div className="specimen-scale">
+              <span className="specimen-ruler" aria-hidden="true" />
+              <p className="specimen-scale-note">
+                目盛りの全長が 50 mm なら実物大です。短ければ、倍率 100% で刷り直してください。
+              </p>
+            </div>
+          </div>
+
           {result.cpsConversion !== null && (
             <p className="report-note" data-testid="magnification">
               新聞の文字（1M）を基準にすると、およそ{" "}
@@ -141,7 +233,7 @@ export function PatientReport({
         </section>
       )}
 
-      {/* --- グラフ --- */}
+      {/* --- グラフ（SPEC §8.2.2 の必須項目。ベクタのまま刷る） --- */}
       <section className="report-section report-figure">
         <h2>文字の大きさと読む速さ</h2>
         <SpeedCurve
@@ -157,6 +249,7 @@ export function PatientReport({
           }}
         />
       </section>
+      </div>
 
       <footer className="report-footer">
         <p>
@@ -165,6 +258,8 @@ export function PatientReport({
         </p>
         <p>
           ポイント（pt）の値は MNREAD-J のチャートの文字設計に対応した相当値です。
+          {/* 見本が出ていない検査で「見本は明朝体」と書くと、ない紙面を指すことになる */}
+          {support !== null && "見本は検査と同じ明朝体で刷っています。"}
           書体（フォント）によって同じポイント数でも見え方が変わるため、実物で確かめてください。
         </p>
         <p className="report-version">
