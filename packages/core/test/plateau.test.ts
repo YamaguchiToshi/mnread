@@ -202,6 +202,65 @@ describe("SDev 法 — 選択規則と閾値の下限（SPEC §5.5.2）", () => 
     expect(cpsOf(speeds)).toBe(0.7);
   });
 
+  /* ---- 単一の高い外れ値（OPEN-8 の裁定、SPEC §5.5.2） ---- */
+
+  it("単一の高い外れ値が核を乗っ取っても、CPS が過小にならない", () => {
+    // 1.0 logMAR だけが 722 cpm。核は「平均が最大の隣接2点」なので必ず
+    // 外れ値を含む組になる。除外がないと帯の下限が 77 cpm まで落ち、
+    // 190・95 cpm の点まで飲み込んで CPS = 0.4 になっていた（真値 0.6）。
+    const speeds = [380, 380, 380, 722, 380, 380, 380, 380, 190, 95, 48, 24, 12, 6, 3, 0];
+    expect(cpsOf(speeds)).toBe(0.6);
+  });
+
+  it("最速点の除外は帯にだけ効き、MRS はプラトー全点の平均のまま", () => {
+    // 外れ値はプラトーの一員として残る。除外は「帯をどこまで下げるか」の
+    // 推定にしか及ばない（SPEC §5.5.2・§5.5.3）。
+    const s = curveFromSpeeds([380, 380, 380, 722, 380, 380, 380, 380, 190, 95, 48, 24, 12, 6, 3, 0, null, null, null]);
+    const r = estimateSdev(buildCurve(resolveItems(s, spec)));
+    expect(r.plateau).toHaveLength(8);
+    expect(r.plateau.map((p) => p.speedCpm)).toContain(722);
+
+    const speeds = r.plateau.map((p) => p.speedCpm);
+    const mrs = computeMrs(r.plateau, spec).find((m) => m.method === "arithmetic")!;
+    expect(mrs.valueCpm).toBeCloseTo(
+      speeds.reduce((a, b) => a + b, 0) / speeds.length,
+      9,
+    );
+    // 帯の水準は最速点を抜いた側なので、MRS より低い
+    expect(plateauBand(r.plateau).level).toBeLessThan(mrs.valueCpm!);
+  });
+
+  it("遅い点は落とさない（プラトーのばらつきが実際に大きいことの証拠）", () => {
+    // 落とすのは最速側だけ。両側を落とすと、下振れを無視した狭い帯になる。
+    const s = curveFromSpeeds([400, 400, 400, 300, 150, 70, ...Array<null>(13).fill(null)]);
+    const curve = buildCurve(resolveItems(s, spec));
+    const band = plateauBand(curve.slice(0, 4)); // 400/400/400/300
+    // 最速の 400 を1つ落とした {400,400,300} の統計になっている
+    expect(band.level).toBeCloseTo((400 + 400 + 300) / 3, 9);
+    expect(band.sd).toBeGreaterThan(MIN_RELATIVE_SD * band.level);
+  });
+
+  it("3点の区間では除外しない — 下限の根拠になっている原典の計算を残す", () => {
+    // 原典 §4 測定例のプラトーは3点。sd 22.07 が下限 20.60 を上回って効いている。
+    // ここで1点落とすと残り2点の sd は 6.9 になり、下限が常に効くようになる。
+    const plateau = estimateSdev(buildCurve(resolveItems(session(), spec))).plateau;
+    expect(plateau).toHaveLength(3);
+    const band = plateauBand(plateau);
+    expect(band.level).toBeCloseTo(exp.mrsArithmetic, 9); // 3点なので水準 = MRS
+    expect(band.sd).toBeCloseTo(22.0683, 3);
+    expect(band.sd).toBeGreaterThan(MIN_RELATIVE_SD * band.level);
+  });
+
+  it("帯の再推定が巡回する曲線では値を出さない（不動点でなければ推定不能）", () => {
+    // 低下がまったくない曲線。広い区間と狭い区間が交互に現れて止まらない。
+    // 「10回目にたまたま居た区間」を返すと反復回数が定義に混じる。
+    const flat = [403, 384, 405, 397, 397, 401, 368, 345, 389, 402, 379, 403, 359, 385, 361, 388, 414, 386, 368];
+    const r = estimateSdev(buildCurve(resolveItems(curveFromSpeeds(flat), spec)));
+    expect(r.estimate.estimable).toBe(false);
+    expect(r.estimate.notEstimableReason).toContain("収束しない");
+    expect(r.estimate.cpsCorrectedLogMAR).toBeNull();
+  });
+
   it("選択されたプラトーの外側に隣接する点は許容幅の外にある", () => {
     // 拡張が「許容幅を外れたところで止まる」ことを、選ばれた区間そのもので確認する。
     const cases = [
@@ -395,8 +454,8 @@ describe("analyze() 全体", () => {
       exp.mrsArithmetic,
       9,
     );
-    expect(r.specVersion).toBe("0.5.0");
-    expect(r.algorithmVersion).toBe("0.4.0");
+    expect(r.specVersion).toBe("0.6.0");
+    expect(r.algorithmVersion).toBe("0.5.0");
   });
 
   it("検者の目視判定があればそちらが主値になる", () => {

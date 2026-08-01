@@ -11,10 +11,10 @@
  */
 
 /** SPEC.md の版。解析結果に必ず含める。 */
-export const SPEC_VERSION = "0.5.0";
+export const SPEC_VERSION = "0.6.0";
 
 /** 算出結果が変わりうる変更で必ず上げる（SPEC §10）。 */
-export const ALGORITHM_VERSION = "0.4.0";
+export const ALGORITHM_VERSION = "0.5.0";
 
 /* ============================================================
    チャート種別

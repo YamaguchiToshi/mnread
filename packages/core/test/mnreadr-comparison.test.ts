@@ -7,7 +7,7 @@
  *   1. オラクルが正しく実装できているか（原典測定例での既知の値）
  *   2. 裁定済みの差異が、裁定どおりの形で現れているか
  *
- * 差異の網羅的な測定は `packages/fixtures/mnreadr-diff.mjs`、
+ * 差異の網羅的な測定は `pnpm --filter @mnread/core diff:mnreadr`、
  * 一件ずつの裁定は `docs/mnreadr-comparison.md` にある。
  */
 

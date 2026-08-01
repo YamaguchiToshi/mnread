@@ -6,18 +6,17 @@
  * 広げる。核の選び方も拡張も決定的なので、結果は一意に定まる。
  *
  *   核 P0   = 平均が最大の隣接2点（同値なら小さい文字側）
- *   許容幅  = 1.96 · max( sd(P0),  MIN_RELATIVE_SD · mean(P0) )
- *   拡張    = 核から両方向へ、mean(P0) − 許容幅 以上の点が続くかぎり
- *   CPS     = 得られた区間の最小 logMAR
- *
- * OPEN-8: 核が「平均が最大の隣接2点」であるため、単一の高い外れ値があれば
- * 必ずそれを含む組が核になる。核は2点しかなく標本 sd が外れ値の逸脱量だけで
- * 決まるため、帯が過大になり真の CPS より下まで飲み込む。再推定でも引き戻せない
- * （広がった区間の sd はさらに大きくなる）。`docs/mnreadr-comparison.md` E-1。
+ *   標本 S  = 区間の点。4点以上なら最速の1点を除く（OPEN-8 の裁定）
+ *   許容幅  = 1.96 · max( sd(S),  MIN_RELATIVE_SD · mean(S) )
+ *   拡張    = 核から両方向へ、mean(S) − 許容幅 以上の点が続くかぎり
+ *   CPS     = 得られた区間の最小 logMAR。**不動点に達したときだけ値を出す**
  *
  * 許容幅を**患者自身のばらつき**から決めるのが要点。固定の百分率（試作の
  * 「MRS の85%」のような）にすると、プラトーが安定した人にも不安定な人にも
  * 同じ物差しを当てることになり、前者では過度に緩く、後者では過度に厳しくなる。
+ *
+ * ここで求める水準は帯の中心であって MRS ではない。MRS はプラトー内の全点の
+ * 平均であり（SPEC §5.4）、最速点の除外は**帯の推定にしか及ばない**。
  */
 
 import { mean, sampleSd, type CurvePoint } from "../curve.js";
@@ -42,8 +41,29 @@ export const SDEV_MULTIPLIER = 1.96;
  */
 export const MIN_RELATIVE_SD = 0.05;
 
+/**
+ * 最速の1点を帯の推定から外しはじめる区間の大きさ（OPEN-8 の裁定、SPEC §5.5.2）。
+ *
+ * 単一の高い外れ値は、水準と標本 sd の**両方**を押し上げる。帯は「水準から
+ * どれだけ下まで同じプラトーとみなすか」を決めるものなので、外れ値ひとつで
+ * 帯が二重に広がり、真の CPS より小さい文字まで飲み込む。合成
+ * `single_high_outlier` 族で 40/40 発生していた。
+ *
+ * 落とすのは最速側だけである。遅い点はプラトーのばらつきが実際に大きいことの
+ * 証拠であり、落とすと帯が過小になる（`single_low_outlier` 族は現行でも 40/40）。
+ *
+ * しきい値が 4 なのは、3点の区間から1点落とすと残り2点になり、その標本 sd は
+ * ばらつきの推定として弱く、下限（5%）が常に効いてしまうため。原典 §4 の測定例の
+ * プラトーはちょうど3点であり、そこでは sd 22.07 が下限 20.60 を上回って効いている。
+ * **下限の根拠になっている当の計算を、除外で骨抜きにしない。**
+ */
+export const TRIM_MIN_POINTS = 4;
+
 /** これ以下の有効速度点では推定しない（SPEC §5.5.4）。 */
 export const MIN_VALID_POINTS = 4;
+
+/** 帯の再推定の上限。通常は2〜3回で収束する。 */
+const MAX_REFINEMENTS = 10;
 
 export interface SdevResult {
   readonly estimate: CpsEstimate;
@@ -60,11 +80,18 @@ export interface PlateauBand {
   readonly lowerBound: number;
 }
 
-export function plateauBand(core: readonly CurvePoint[]): PlateauBand {
-  const speeds = core.map((p) => p.speedCpm);
+export function plateauBand(interval: readonly CurvePoint[]): PlateauBand {
+  const speeds = trimFastest(interval.map((p) => p.speedCpm));
   const level = mean(speeds);
   const sd = Math.max(sampleSd(speeds), MIN_RELATIVE_SD * level);
   return { level, sd, lowerBound: level - SDEV_MULTIPLIER * sd };
+}
+
+/** 帯の推定に用いる標本。4点以上なら最速の1点を落とす（OPEN-8）。 */
+function trimFastest(speeds: readonly number[]): readonly number[] {
+  if (speeds.length < TRIM_MIN_POINTS) return speeds;
+  const sorted = [...speeds].sort((a, b) => a - b);
+  return sorted.slice(0, -1);
 }
 
 export function estimateSdev(curve: readonly CurvePoint[]): SdevResult {
@@ -86,14 +113,31 @@ export function estimateSdev(curve: readonly CurvePoint[]): SdevResult {
   // 帯は核から求めるが、核は2点しかなくばらつきの推定が不安定なので、
   // 得られた区間から帯を求め直して収束させる。毎回かならず核から張り直す
   // ので、区間は広がるだけでなく狭まることもある（単調増加ではない）。
+  //
+  // **プラトーは、この再推定の不動点として定義する。** 単調でない以上、
+  // 巡回しうる（合成 `flat_no_decline` に1本ある — 低下がまったくない曲線で、
+  // 広い区間と狭い区間が交互に現れる）。巡回や打ち切りのときに「10回目に
+  // たまたま居た区間」を返すのは、反復回数が定義に混じるということであり、
+  // 値として出してよいものではない。推定不能として目視判定に回す。
+  const visited = new Set<string>([`${core.start},${core.end}`]);
   let lo = core.start;
   let hi = core.end;
+  let converged = false;
   for (let iteration = 0; iteration < MAX_REFINEMENTS; iteration += 1) {
     const band = plateauBand(points.slice(lo, hi + 1));
     const next = expandFromCore(points, core, band.lowerBound);
-    if (next.lo === lo && next.hi === hi) break;
+    if (next.lo === lo && next.hi === hi) {
+      converged = true;
+      break;
+    }
+    const key = `${next.lo},${next.hi}`;
+    if (visited.has(key)) break; // 巡回した
+    visited.add(key);
     lo = next.lo;
     hi = next.hi;
+  }
+  if (!converged) {
+    return notEstimable("プラトーの帯が収束しない（区間の再推定が巡回する）");
   }
 
   const plateau = points.slice(lo, hi + 1);
@@ -113,9 +157,6 @@ export function estimateSdev(curve: readonly CurvePoint[]): SdevResult {
     plateau,
   };
 }
-
-/** 帯の再推定の上限。通常は2〜3回で収束する。 */
-const MAX_REFINEMENTS = 10;
 
 /** 核から両方向へ、連続性を保ったまま許容下限の内側に広げる。 */
 function expandFromCore(

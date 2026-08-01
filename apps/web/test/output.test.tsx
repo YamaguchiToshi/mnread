@@ -92,7 +92,7 @@ describe("電子カルテ用テキスト", () => {
   });
 
   it("仕様版とアルゴリズム版を必ず添える（SPEC §10）", () => {
-    expect(text).toContain("仕様 0.5.0 / アルゴリズム 0.4.0");
+    expect(text).toContain("仕様 0.6.0 / アルゴリズム 0.5.0");
   });
 
   it("上書きした判定は理由つきで残る（SPEC §8.4）", () => {
@@ -174,7 +174,7 @@ describe("生データ書き出し", () => {
       specVersion: string;
       result: AnalysisResult;
     };
-    expect(parsed.specVersion).toBe("0.5.0");
+    expect(parsed.specVersion).toBe("0.6.0");
     // 表示は 1.10 だが、書き出しは倍精度のまま出る（ADR-0003）
     expect(parsed.result.readingAcuity!.raCorrectedLogMAR).toBeCloseTo(
       1.0976966623306477,
@@ -262,7 +262,7 @@ describe("A4 患者・支援者向けレポート", () => {
     expect(report).toHaveTextContent("参考値");
     expect(report).toHaveTextContent("診断ではありません");
     expect(report).toHaveTextContent("書体（フォント）によって");
-    expect(report).toHaveTextContent("アルゴリズム 0.4.0");
+    expect(report).toHaveTextContent("アルゴリズム 0.5.0");
   });
 
   it("曲線をレポートに含める（印刷でベクタのまま出す）", async () => {

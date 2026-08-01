@@ -14,7 +14,7 @@ Read these before changing anything that affects a computed value:
 
 - **`oda.lab/`** — the primary sources, as PDFs: the official 2002 Oda manual (`MNREAD-J-JkMan020518.pdf`) and the Oda lab Q&A (`odalab web resource center.pdf`). **These are the final authority on every formula.** Reading them requires poppler (`brew install poppler`); the Read tool renders pages visually, which is necessary because the formulae, tables, and the worked-example scoresheet are laid out graphically.
 - **`SPEC.md`** — the single source of truth for the implementation: formulae, item states, validation rules, output schema, rounding policy. Carries `SPEC_VERSION`. Every formula cites its manual/Q&A locator. **If the implementation disagrees with SPEC.md, SPEC.md is right** — change it first, deliberately, then the code. If SPEC.md disagrees with `oda.lab/`, the primary source is right.
-- **`docs/adr/`** — 15 decisions with their reasoning (ADR-0009 is superseded by ADR-0011). Consult these before "fixing" something that looks wrong; several apparent oddities are deliberate.
+- **`docs/adr/`** — 16 decisions with their reasoning (ADR-0009 is superseded by ADR-0011). Consult these before "fixing" something that looks wrong; several apparent oddities are deliberate.
 - **`PLAN.md`** — phased implementation and verification plan.
 - `deep-research-report-1.md` / `-2.md` — secondary research summaries (Japanese: computation; English: validation). Useful for the automated-CPS literature, which the primary sources don't cover. **Do not resolve a formula question from these** — go to `oda.lab/`. Their `citeturnNNviewN` markers are research-tool artifacts.
 
@@ -82,14 +82,18 @@ These come from the ADRs. Each one was a real defect in the earlier prototype.
 
 `SPEC.md` §11 tracks unresolved items; code that depends on one carries an `// OPEN-n` comment. OPEN-1 (the M-value offset) was **resolved against the primary sources** — Q&A A7 states `M = 10^(logMAR − 0.4)` outright, and the manual's chart-printed M sizes and its "4M ≈ 28pt" both agree. The remaining items (OPEN-2 … OPEN-5) are minor and none block Phase 1.
 
-## The plateau algorithm was redesigned twice — read SPEC §5.5.2 before touching it
+## The plateau algorithm was redesigned twice, then repaired once — read SPEC §5.5.2 before touching it
 
 `plateau_sdev_v1` is not a literature algorithm; it is a project-specific ruling (OPEN-3). Two earlier designs were discarded for reasons worth knowing:
 
-1. Requiring every plateau point within 1.96 SD rejects long plateaus structurally (probability ≈ 0.95ⁿ; 66% at 8 points).
+1. Requiring every plateau point within 1.96 SD rejects long plateaus structurally (probability ≈ 0.95ⁿ; 66% at 8 points). Re-measured in 2026-08 while fixing OPEN-8: a declarative "enumerate the self-consistent intervals" formulation scores 115/600 against 498 for the current design. The failure is real, not a hunch.
 2. A fixed "80% of the plateau level" made the SD term inert — mutation testing showed the multiplier could be changed from 0 to 3 with no test failing. That design was the prototype's fixed-ratio rule wearing a different name.
 
-The current design derives the band from the patient's own variability and re-estimates it from the whole plateau. All six mutations of its decisions now fail tests. When changing it, re-run the mutation checks — a passing suite is not evidence that a design decision is load-bearing.
+The current design derives the band from the patient's own variability and re-estimates it from the whole interval, **excluding the interval's single fastest point once it holds 4 or more** (ADR-0016, OPEN-8: a high outlier inflates the level and the SD at once, so one point widened the band twice and swallowed sizes below the true CPS). The plateau is defined as the **fixed point** of that re-estimation; if the interval sequence cycles, the estimate is withheld rather than reported from whichever iteration the loop stopped on.
+
+All eleven mutations of its decisions fail tests. When changing it, re-run the mutation checks — a passing suite is not evidence that a design decision is load-bearing.
+
+**And do not trust the ±0.1 logMAR accuracy metric to tell you a design works.** The first candidate fix for OPEN-8 scored 40/40 on the family it was meant to repair while silently failing to converge: the loop cycled with period 4, and the tolerance counted "landed one step away on iteration 10" as correct. Measure convergence separately from accuracy.
 
 ## Verified against the primary sources
 
@@ -108,7 +112,7 @@ The one caveat worth knowing: the chart's printed M sizes are R10 preferred numb
 
 ## Phase status
 
-**Phases 0–4 are complete.** 527 tests pass (core 373 + web 154).
+**Phases 0–4 are complete.** 532 tests pass (core 378 + web 154).
 
 `packages/core` is finished for clinical purposes: reading speed, distance correction, item states, reading acuity, unit conversions, validation, the plateau / CPS / MRS layer, the accessibility index, reading zones, and `analyze()`. Test detection power was confirmed by mutation testing — breaking a constant or a sign fails between 7 and 67 tests.
 
