@@ -122,6 +122,9 @@ export function deriveSessionView(draft: SessionDraft): SessionView {
     } satisfies RowView;
   });
 
+  // `enabledCpsMethods` は渡さない。画面は出荷既定（SPEC §5.5.1）で走り、
+  // 合成受け入れテストもその構成で silent-wrong ゼロを課している（ADR-0015）。
+  // ここで独自の集合を渡すと、検証された構成と画面が再び食い違う。
   const outcome = analyze(input, {
     manualPlateau: toPlateauSelection(draft),
     overrideReason:

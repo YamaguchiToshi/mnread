@@ -5,7 +5,7 @@
  * 英語版 MNREAD の定数（10語、40cm、200 wpm）をここに追加しないこと（ADR-0001）。
  */
 
-import type { AnalysisOptions, Variant, VariantSpec } from "./types.js";
+import type { AnalysisOptions, CpsMethodId, Variant, VariantSpec } from "./types.js";
 
 export const VARIANT_SPECS: Readonly<Record<Variant, VariantSpec>> = {
   "MNREAD-J": {
@@ -88,9 +88,27 @@ export const ACCESSIBILITY_RANGE_CHART_LOGMAR = {
    既定オプション
    ============================================================ */
 
+/**
+ * 出荷時の有効算出法（SPEC §5.5.1）。
+ *
+ * `expdecay_90` は参考値としてだけでなく、`CPS_METHOD_DISAGREEMENT` の
+ * 比較対象として要る。この集合が目視と SDev の2つだと食い違いを検出できる
+ * 相手がおらず、合成600本のうち1本が無警告のまま真値から外れた（OPEN-9）。
+ * **画面に出る構成で受け入れ基準を満たすこと**が条件なので、集合を縮める
+ * 変更は `synthetic.test.ts` の出荷構成側で落ちる。
+ *
+ * `expdecay_80` / `_95` を入れないのは、§7 の比較対象が `expdecay_90` のみで、
+ * 追加してもレビュー発火が1件も変わらないため。
+ */
+export const DEFAULT_ENABLED_CPS_METHODS = [
+  "manual_visual_2002",
+  "plateau_sdev_v1",
+  "expdecay_90",
+] as const satisfies readonly CpsMethodId[];
+
 export const DEFAULT_ANALYSIS_OPTIONS: AnalysisOptions = {
   manualPlateau: null,
-  enabledCpsMethods: ["manual_visual_2002", "plateau_sdev_v1"],
+  enabledCpsMethods: DEFAULT_ENABLED_CPS_METHODS,
   /** OPEN-4: 5% に臨床的根拠はない。Phase 5 で実測により調整する。 */
   mrsDisagreementThreshold: 0.05,
   cpsDisagreementThresholdLogMAR: 0.2,

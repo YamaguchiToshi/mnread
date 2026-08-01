@@ -24,6 +24,7 @@ import {
   buildExportJson,
   exportFileBaseName,
 } from "../src/output/exportData.js";
+import { enterCleanTwoLimb } from "./support/cleanCurve.js";
 import { enterWorkedExample, workedExampleSession } from "./support/workedExample.js";
 
 /** 原典 §4 の測定例を core に通したもの。検者の判定は入れていない。 */
@@ -57,6 +58,9 @@ describe("電子カルテ用テキスト", () => {
       (line) =>
         line.includes("CPS") &&
         line.includes("logMAR") &&
+        // 品質フラグの説明文は CPS の値を報告する行ではない
+        // （「算出法によって CPS が 0.2 logMAR を超えて食い違う」など）
+        !line.startsWith("  - ") &&
         !methodNames.some((name) => line.includes(name)),
     );
     expect(bare).toEqual([]);
@@ -88,7 +92,7 @@ describe("電子カルテ用テキスト", () => {
   });
 
   it("仕様版とアルゴリズム版を必ず添える（SPEC §10）", () => {
-    expect(text).toContain("仕様 0.4.0 / アルゴリズム 0.3.0");
+    expect(text).toContain("仕様 0.5.0 / アルゴリズム 0.4.0");
   });
 
   it("上書きした判定は理由つきで残る（SPEC §8.4）", () => {
@@ -170,7 +174,7 @@ describe("生データ書き出し", () => {
       specVersion: string;
       result: AnalysisResult;
     };
-    expect(parsed.specVersion).toBe("0.4.0");
+    expect(parsed.specVersion).toBe("0.5.0");
     // 表示は 1.10 だが、書き出しは倍精度のまま出る（ADR-0003）
     expect(parsed.result.readingAcuity!.raCorrectedLogMAR).toBeCloseTo(
       1.0976966623306477,
@@ -258,7 +262,7 @@ describe("A4 患者・支援者向けレポート", () => {
     expect(report).toHaveTextContent("参考値");
     expect(report).toHaveTextContent("診断ではありません");
     expect(report).toHaveTextContent("書体（フォント）によって");
-    expect(report).toHaveTextContent("アルゴリズム 0.3.0");
+    expect(report).toHaveTextContent("アルゴリズム 0.4.0");
   });
 
   it("曲線をレポートに含める（印刷でベクタのまま出す）", async () => {
@@ -288,9 +292,30 @@ describe("出力画面", () => {
     expect(screen.queryByTestId("patient-report")).toBeNull();
   });
 
-  it("品質フラグがなければ警告を出さない（測定例は素直な曲線）", async () => {
-    await openOutput();
+  it("品質フラグがなければ警告を出さない", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await enterCleanTwoLimb(user);
+    await user.click(screen.getByTestId("tab-output"));
+
     expect(screen.queryByTestId("output-review-warning")).toBeNull();
+  });
+
+  it("測定例は指数フィットとの食い違いで目視確認を求める（出荷既定・SPEC §5.5.1）", async () => {
+    // 出荷既定に `expdecay_90` が入ったことで、原典 §4 の測定例にも
+    // CPS_METHOD_DISAGREEMENT が立つ。指数減衰モデルが二肢曲線に適合せず、
+    // 90% 到達サイズを実測範囲の外（1.61 logMAR、SDev は 1.40）へ押し出すため。
+    // 過剰警告側であり、主値（1.40 logMAR / SDev法）は変わらない。
+    // 閾値 0.2 logMAR の較正は実測20〜30例で行う（OPEN-6）。
+    await openOutput();
+
+    expect(screen.getByTestId("output-review-warning")).toBeInTheDocument();
+    expect(screen.getByTestId("emr-text")).toHaveTextContent(
+      "CPS_METHOD_DISAGREEMENT",
+    );
+    expect(screen.getByTestId("emr-text")).toHaveTextContent(
+      "1.40 logMAR ＝ SDev法 v1（自動）",
+    );
   });
 
   it("目視確認が必要な場合、出力前に警告する", async () => {

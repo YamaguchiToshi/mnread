@@ -31,19 +31,23 @@ import { DEFAULT_ANALYSIS_OPTIONS, VARIANT_SPECS } from "./variants.js";
 import { readingZones } from "./zones.js";
 
 /**
- * 主値として選ぶ順序。
+ * 主値として選ぶ順序（SPEC §5.5.1）。
  *
  * ADR-0006 により臨床の主値は常に目視判定である。検者がまだ判定していない
- * 場合に限り、参考値の順で暫定的に選ぶ。この場合 `selection.cpsMethod` が
+ * 場合に限り、SDev 法を暫定的に選ぶ。この場合 `selection.cpsMethod` が
  * `manual_visual_2002` 以外になるので、UI と出力はそれを明示すること
  * （「CPS = ○○」だけを出さないという規則がここでも効く）。
+ *
+ * **指数フィットはここに入れない（ADR-0015）。** SDev 法が推定不能になる主因は
+ * 欠測段であり（`estimateSdev` は欠測段をまたがない）、欠測を無視して曲線全体に
+ * フィットする手法でその穴を埋めるのは、SDev 法が拒んだ推定を別の算出法IDで
+ * 行うことに等しい。合成 `sparse` 族ではこの昇格が起きた17本すべてで指数
+ * フィットの CPS が真値から +0.54〜+0.69 logMAR 外れた。参考値としての併記は
+ * 続ける（`enabledCpsMethods` の既定に `expdecay_90` は入っている）。
  */
 const SELECTION_PRIORITY: readonly CpsMethodId[] = [
   "manual_visual_2002",
   "plateau_sdev_v1",
-  "expdecay_90",
-  "expdecay_80",
-  "expdecay_95",
 ];
 
 export function analyze(

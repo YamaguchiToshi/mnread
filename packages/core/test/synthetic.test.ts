@@ -18,7 +18,7 @@ import {
   type SyntheticCurve,
 } from "@mnread/fixtures";
 
-import { analyze } from "../src/index.js";
+import { analyze, DEFAULT_ENABLED_CPS_METHODS } from "../src/index.js";
 import type { AnalysisResult, CpsMethodId, SessionInput } from "../src/index.js";
 
 const METHODS: readonly CpsMethodId[] = [
@@ -26,6 +26,19 @@ const METHODS: readonly CpsMethodId[] = [
   "expdecay_80",
   "expdecay_90",
   "expdecay_95",
+];
+
+/**
+ * 最重要基準を課す構成（SPEC §5.5.1 / OPEN-9）。
+ *
+ * レビュー発火は `CPS_METHOD_DISAGREEMENT` を通じて**有効算出法の集合に依存する**。
+ * 4手法構成だけで silent-wrong ゼロを証明しても、画面に出る構成が別ならそれは
+ * 出荷の保証にならない。既定を縮めた瞬間にここが落ちるよう、出荷構成そのものを
+ * 走らせる。方式間の比較（指数フィットの 80/90/95 など）は従来どおり4手法で見る。
+ */
+const CONFIGS: { readonly label: string; readonly methods: readonly CpsMethodId[] }[] = [
+  { label: "出荷既定", methods: DEFAULT_ENABLED_CPS_METHODS },
+  { label: "合成テスト4手法", methods: METHODS },
 ];
 
 const CURVES_PER_FAMILY = 40;
@@ -48,8 +61,11 @@ function toSession(c: SyntheticCurve): SessionInput {
   };
 }
 
-function run(c: SyntheticCurve): AnalysisResult | null {
-  const out = analyze(toSession(c), { enabledCpsMethods: METHODS });
+function run(
+  c: SyntheticCurve,
+  methods: readonly CpsMethodId[] = METHODS,
+): AnalysisResult | null {
+  const out = analyze(toSession(c), { enabledCpsMethods: methods });
   return out.ok ? out.result : null;
 }
 
@@ -105,13 +121,13 @@ describe("生成器", () => {
   });
 });
 
-describe("誤った CPS を無警告で出さない（最重要）", () => {
+describe.each(CONFIGS)("誤った CPS を無警告で出さない（最重要） — $label", ({ methods }) => {
   // 自動推定が外れること自体は避けられない。許されないのは、外れた値を
-  // レビュー要求なしに出すことである。全族に対して課す。
+  // レビュー要求なしに出すことである。全族に対して、出荷構成でも課す。
   it.each(SYNTHETIC_FAMILIES)("%s で silent-wrong が発生しない", (family) => {
     const curves = generateFamily(family, CURVES_PER_FAMILY);
     const silentWrong = curves.filter((c) => {
-      const r = run(c);
+      const r = run(c, methods);
       if (r === null) return true;
       return !cpsWithinTolerance(r, c.latent.cpsChartLogMAR) && !r.requiresReview;
     });
@@ -119,6 +135,61 @@ describe("誤った CPS を無警告で出さない（最重要）", () => {
       silentWrong.length,
       `${silentWrong.slice(0, 3).map((c) => c.seed).join(",")} で無警告のまま CPS が外れた`,
     ).toBe(0);
+  });
+});
+
+describe("出荷構成そのもの（SPEC §5.5.1 / OPEN-9）", () => {
+  it("既定の有効算出法は目視・SDev・expdecay_90 の3つ", () => {
+    // `expdecay_90` は参考値としてだけでなく CPS_METHOD_DISAGREEMENT の比較相手
+    // として要る。ここを縮めると上の「silent-wrong ゼロ（出荷既定）」が落ちる。
+    expect([...DEFAULT_ENABLED_CPS_METHODS]).toEqual([
+      "manual_visual_2002",
+      "plateau_sdev_v1",
+      "expdecay_90",
+    ]);
+  });
+
+  it("既定を渡さない analyze() が既定構成で走る", () => {
+    const c = generateCurve("clean_two_limb", 7);
+    const out = analyze(toSession(c));
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.result.cps.map((e) => e.method)).toEqual([...DEFAULT_ENABLED_CPS_METHODS]);
+  });
+
+  it("指数フィットが暫定主値に昇格しない（ADR-0015）", () => {
+    // SDev 法が推定不能になる主因は欠測段であり、欠測を無視してフィットする
+    // 手法がその穴を埋めるのは、SDev 法が拒んだ推定を別の名前で行うに等しい。
+    // `sparse` 族では昇格させた場合の指数フィット CPS が真値から +0.5 logMAR
+    // 以上外れる。どの構成でも主値は目視か SDev に限る。
+    for (const { methods } of CONFIGS) {
+      for (const family of SYNTHETIC_FAMILIES) {
+        for (const c of generateFamily(family, 10)) {
+          const r = run(c, methods)!;
+          expect(
+            r.selection.cpsMethod,
+            `${family}/${c.seed} で指数フィットが主値になった`,
+          ).not.toMatch(/^expdecay/);
+        }
+      }
+    }
+  });
+
+  it("SDev 法が推定不能なら自動 CPS を出さない（指数フィットは併記に留まる）", () => {
+    const sparseWithFit = generateFamily("sparse", CURVES_PER_FAMILY).filter((c) => {
+      const r = run(c, DEFAULT_ENABLED_CPS_METHODS)!;
+      const sdev = r.cps.find((e) => e.method === "plateau_sdev_v1")!;
+      const fit = r.cps.find((e) => e.method === "expdecay_90")!;
+      return !sdev.estimable && fit.estimable;
+    });
+    // この状況が実際に起きること自体を確かめる（起きなければ検証にならない）。
+    expect(sparseWithFit.length).toBeGreaterThan(0);
+    for (const c of sparseWithFit) {
+      const r = run(c, DEFAULT_ENABLED_CPS_METHODS)!;
+      expect(r.cpsConversion).toBeNull();
+      expect(r.supportRange).toBeNull();
+      expect(r.requiresReview).toBe(true);
+    }
   });
 });
 
@@ -245,21 +316,24 @@ describe("レビューの誤発火", () => {
     expect(flagged / curves.length).toBeLessThanOrEqual(0.35);
   });
 
-  it("レビューを要求しなかった曲線では CPS が必ず ±0.1 logMAR 以内", () => {
-    // フラグが立った曲線の CPS が外れているのは、むしろ検出が働いている証拠。
-    // 保証すべきなのは逆側 —「自動値をそのまま受け入れてよい」と判断した
-    // 曲線が本当に正しいこと。
-    for (const family of SYNTHETIC_FAMILIES) {
-      for (const c of generateFamily(family, CURVES_PER_FAMILY)) {
-        const r = run(c);
-        if (r === null || r.requiresReview) continue;
-        expect(
-          cpsWithinTolerance(r, c.latent.cpsChartLogMAR),
-          `${family}/${c.seed} が無警告で外れた`,
-        ).toBe(true);
+  it.each(CONFIGS)(
+    "レビューを要求しなかった曲線では CPS が必ず ±0.1 logMAR 以内（$label）",
+    ({ methods }) => {
+      // フラグが立った曲線の CPS が外れているのは、むしろ検出が働いている証拠。
+      // 保証すべきなのは逆側 —「自動値をそのまま受け入れてよい」と判断した
+      // 曲線が本当に正しいこと。出荷構成でも同じ保証が要る（OPEN-9）。
+      for (const family of SYNTHETIC_FAMILIES) {
+        for (const c of generateFamily(family, CURVES_PER_FAMILY)) {
+          const r = run(c, methods);
+          if (r === null || r.requiresReview) continue;
+          expect(
+            cpsWithinTolerance(r, c.latent.cpsChartLogMAR),
+            `${family}/${c.seed} が無警告で外れた`,
+          ).toBe(true);
+        }
       }
-    }
-  });
+    },
+  );
 });
 
 describe("算出法間の整合", () => {

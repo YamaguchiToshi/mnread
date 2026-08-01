@@ -14,7 +14,7 @@ Read these before changing anything that affects a computed value:
 
 - **`oda.lab/`** — the primary sources, as PDFs: the official 2002 Oda manual (`MNREAD-J-JkMan020518.pdf`) and the Oda lab Q&A (`odalab web resource center.pdf`). **These are the final authority on every formula.** Reading them requires poppler (`brew install poppler`); the Read tool renders pages visually, which is necessary because the formulae, tables, and the worked-example scoresheet are laid out graphically.
 - **`SPEC.md`** — the single source of truth for the implementation: formulae, item states, validation rules, output schema, rounding policy. Carries `SPEC_VERSION`. Every formula cites its manual/Q&A locator. **If the implementation disagrees with SPEC.md, SPEC.md is right** — change it first, deliberately, then the code. If SPEC.md disagrees with `oda.lab/`, the primary source is right.
-- **`docs/adr/`** — 13 decisions with their reasoning (ADR-0009 is superseded by ADR-0011). Consult these before "fixing" something that looks wrong; several apparent oddities are deliberate.
+- **`docs/adr/`** — 15 decisions with their reasoning (ADR-0009 is superseded by ADR-0011). Consult these before "fixing" something that looks wrong; several apparent oddities are deliberate.
 - **`PLAN.md`** — phased implementation and verification plan.
 - `deep-research-report-1.md` / `-2.md` — secondary research summaries (Japanese: computation; English: validation). Useful for the automated-CPS literature, which the primary sources don't cover. **Do not resolve a formula question from these** — go to `oda.lab/`. Their `citeturnNNviewN` markers are research-tool artifacts.
 
@@ -75,6 +75,8 @@ These come from the ADRs. Each one was a real defect in the earlier prototype.
 - **The support margin is not a zone boundary** (ADR-0013). The 3 reading zones split at RA and CPS only. Between CPS and CPS+0.1 the patient really is reading at maximum speed; labelling that band "effortful" makes the handout disagree with the measurement. The margin belongs in the recommended-size range `[pt(CPS), pt(CPS+0.1)]`, in its own box.
 - **Never report a value from a model that doesn't fit.** `expdecay_*` returns `estimable: false` when the residual RMSE is too high — the exponential model genuinely cannot fit a sharp two-limb curve, and a CPS derived from a bad fit is noise with a number attached.
 - **Over-flagging is the safe direction.** The clinical primary is the ORT's visual judgment, so a spurious review request costs a glance at the graph; a silently wrong CPS reaches the medical record. The synthetic suite enforces zero "silent-wrong" across all 15 curve families — that criterion is more important than any accuracy percentage.
+- **The shipping default is the config the acceptance suite must run on** (ADR-0015). `requiresReview` fires partly through `CPS_METHOD_DISAGREEMENT`, so the firing rate depends on which methods are enabled — a criterion proved on a method set the screen never uses is not a guarantee. The default is manual + `plateau_sdev_v1` + `expdecay_90`, and `synthetic.test.ts` runs the load-bearing criteria on it. Shrink the default and those tests fail, by design.
+- **The provisional primary stops at `plateau_sdev_v1`** (ADR-0015). When the ORT has not judged yet and SDev cannot estimate, show no automatic CPS. SDev fails mostly because of missing steps, and the exponential fit ignores missing steps — promoting it there re-opens the estimate SPEC §5.5.2 deliberately refused (on the synthetic `sparse` family it was wrong by +0.5 to +0.7 logMAR every time).
 
 ## Open questions
 
@@ -106,7 +108,7 @@ The one caveat worth knowing: the chart's printed M sizes are R10 preferred numb
 
 ## Phase status
 
-**Phases 0–4 are complete.** 497 tests pass (core 344 + web 153).
+**Phases 0–4 are complete.** 527 tests pass (core 373 + web 154).
 
 `packages/core` is finished for clinical purposes: reading speed, distance correction, item states, reading acuity, unit conversions, validation, the plateau / CPS / MRS layer, the accessibility index, reading zones, and `analyze()`. Test detection power was confirmed by mutation testing — breaking a constant or a sign fails between 7 and 67 tests.
 
