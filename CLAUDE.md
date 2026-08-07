@@ -16,6 +16,7 @@ Read these before changing anything that affects a computed value:
 - **`SPEC.md`** — the single source of truth for the implementation: formulae, item states, validation rules, output schema, rounding policy. Carries `SPEC_VERSION`. Every formula cites its manual/Q&A locator. **If the implementation disagrees with SPEC.md, SPEC.md is right** — change it first, deliberately, then the code. If SPEC.md disagrees with `oda.lab/`, the primary source is right.
 - **`docs/adr/`** — 16 decisions with their reasoning (ADR-0009 is superseded by ADR-0011). Consult these before "fixing" something that looks wrong; several apparent oddities are deliberate.
 - **`PLAN.md`** — phased implementation and verification plan.
+- `README.md` — the human entry point: what the tool is, what has been built, how it is verified, what remains. **Not a source of truth** — it summarises and links. It quotes a few figures (test counts, the synthetic 498/527/0, the fixture tolerances); if you change something that moves them, move them there too.
 - `deep-research-report-1.md` / `-2.md` — secondary research summaries (Japanese: computation; English: validation). Useful for the automated-CPS literature, which the primary sources don't cover. **Do not resolve a formula question from these** — go to `oda.lab/`. Their `citeturnNNviewN` markers are research-tool artifacts.
 
 Do not restate SPEC.md's formulae in other files. A second copy will drift.
