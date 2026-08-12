@@ -53,8 +53,16 @@ jobs:
       - name: テスト
         run: pnpm test
 
+      # アクセス解析（ADR-0017）。トークンは Cloudflare のサイトトークンで、
+      # 配信される HTML に平文で載る性質のものなので secrets ではなく vars に置く
+      # （secrets にするとログでマスクされ、入っているかどうかを確かめにくくなる）。
+      #
+      # 未設定なら CSP は `connect-src 'none'` のまま、ビーコンも入らない。
+      # 計測を止めたいときはリポジトリ変数を消せばよく、コードは触らなくてよい。
       - name: ビルド
         run: pnpm --filter @mnread/web build
+        env:
+          VITE_CF_BEACON_TOKEN: ${{ vars.CF_BEACON_TOKEN }}
 
       - uses: actions/configure-pages@v6
 

@@ -1,5 +1,7 @@
 import react from "@vitejs/plugin-react";
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig, loadEnv, type Plugin } from "vite";
+
+import { webAnalytics } from "./vite/web-analytics.ts";
 
 /**
  * 開発時だけ CSP の connect-src を緩める。
@@ -24,13 +26,23 @@ function relaxCspForDev(): Plugin {
  * Phase 4 以降で Pages のソースを main のビルドへ差し替える際、ここが合っていないと
  * アセットが 404 になる。足場を作る時点で入れておく。
  */
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   base: "/mnread/",
-  plugins: [react(), relaxCspForDev()],
+  // ビーコンはトークンが与えられたビルドにだけ入る（ADR-0017）。
+  // 未設定なら index.html はそのまま出るので、既定は `connect-src 'none'` のまま。
+  //
+  // 環境変数の取得に loadEnv を使うのは、アプリ側が読む import.meta.env と
+  // まったく同じ経路にするため。ここと画面の文言が別々の出所から決まると、
+  // 「ビーコンはあるのに『通信しません』と書いてある」が起こりうる。
+  plugins: [
+    react(),
+    relaxCspForDev(),
+    webAnalytics(loadEnv(mode, ".", "VITE_").VITE_CF_BEACON_TOKEN),
+  ],
   build: {
     outDir: "dist",
     // 患者データを外部に出さない設計のため、外部リクエストを生む要素を持ち込まない。
     // アセットはすべてバンドルする（Phase 6 の PWA / CSP 固定の前提）。
     assetsInlineLimit: 0,
   },
-});
+}));

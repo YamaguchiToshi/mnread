@@ -10,7 +10,7 @@
 import { ALGORITHM_VERSION, SPEC_VERSION } from "@mnread/core";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { App } from "../src/App.js";
 
@@ -101,6 +101,31 @@ describe("既知の限界の詳細", () => {
 
     expect(detail).toHaveTextContent("端末にもサーバにも保存されません");
     expect(detail).toHaveTextContent("外部への通信は行いません");
+  });
+
+  /**
+   * アクセス解析を入れたビルドでは、上の「外部への通信は行いません」が嘘になる
+   * （ADR-0017）。文言はビーコンの有無と同じ変数から出しているので、
+   * 実際に入れ替わることを確かめる。ここが固まっていないと、
+   * 医療者に見せている説明と配信物が静かに食い違う。
+   */
+  it("アクセス解析を入れたビルドでは、何を送るかへ文言が入れ替わる", async () => {
+    vi.stubEnv("VITE_CF_BEACON_TOKEN", "0123456789abcdef0123456789abcdef");
+    vi.resetModules();
+    const { App: AppWithAnalytics } = await import("../src/App.js");
+
+    const user = userEvent.setup();
+    render(<AppWithAnalytics />);
+
+    await user.click(screen.getByTestId("usage-notes-toggle"));
+    const note = screen.getByTestId("usage-analytics-note");
+
+    expect(note).toHaveTextContent("入力した値が外部へ送られることはありません");
+    expect(note).toHaveTextContent("Cookie は置かず");
+    expect(note).not.toHaveTextContent("外部への通信は行いません");
+
+    vi.unstubAllEnvs();
+    vi.resetModules();
   });
 
   it("開閉しても入力済みの測定値は失われない", async () => {

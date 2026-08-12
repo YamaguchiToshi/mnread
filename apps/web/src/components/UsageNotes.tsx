@@ -22,6 +22,14 @@
 import { ALGORITHM_VERSION, SPEC_VERSION } from "@mnread/core";
 import { useState, type JSX } from "react";
 
+/**
+ * アクセス解析ビーコンが入っているビルドか（ADR-0017）。
+ *
+ * ビーコンの有無はビルド時のトークン設定で決まるので、文言も同じ変数から出す。
+ * 「外部への通信は行いません」と書いたまま1本でも出ていれば、それは嘘になる。
+ */
+const HAS_WEB_ANALYTICS = Boolean(import.meta.env.VITE_CF_BEACON_TOKEN);
+
 export function UsageNotes(): JSX.Element {
   const [open, setOpen] = useState(false);
 
@@ -94,8 +102,19 @@ export function UsageNotes(): JSX.Element {
           <ul>
             <li>
               入力した値は端末にもサーバにも保存されません。再読み込みすると消えます。
-              外部への通信は行いません。
             </li>
+            {HAS_WEB_ANALYTICS ? (
+              <li data-testid="usage-analytics-note">
+                <strong>入力した値が外部へ送られることはありません。</strong>
+                このページを何回開かれたかを数えるため、ページを開いた時刻・参照元・
+                画面サイズだけをアクセス解析（Cloudflare Web Analytics）へ送っています。
+                Cookie は置かず、個人を識別する情報も、検査の入力値も含みません。
+                送信先はこの1か所に限られ、それ以外の外部通信はページの設定
+                （CSP）で禁じています。
+              </li>
+            ) : (
+              <li data-testid="usage-analytics-note">外部への通信は行いません。</li>
+            )}
             <li>
               氏名欄は設けていません。書き出したファイルの取り扱いは院内規程に従ってください。
             </li>
