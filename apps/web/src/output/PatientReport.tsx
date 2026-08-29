@@ -292,8 +292,15 @@ export function PatientReport({
             </div>
             <div className="specimen-scale">
               <span className="specimen-ruler" aria-hidden="true" />
+              {/*
+                長い側も書く。ブラウザによっては紙に合わせて拡大される
+                （実測: Chrome 47mm / Safari 53mm）。「短ければ」だけでは、
+                拡大されている紙を実物大として渡してしまう。
+              */}
               <p className="specimen-scale-note">
-                目盛りの全長が 50 mm なら実物大です。短ければ、倍率 100% で刷り直してください。
+                目盛りは1目盛り 10 mm・全長 50 mm です。定規で測って 50 mm でなければ、
+                この見本は実物大ではありません（短ければ縮小、長ければ拡大されています）。
+                その場合は印刷の倍率を 100%・「用紙に合わせる」をオフにして刷り直してください。
               </p>
             </div>
           </div>
