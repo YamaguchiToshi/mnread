@@ -115,9 +115,19 @@ export function analyze(
   const support =
     cpsLogMAR === null
       ? null
-      : supportRange(cpsLogMAR, options.supportMarginLogMAR, input.viewingDistanceCm);
+      : supportRange(
+          cpsLogMAR,
+          options.supportMarginLogMAR,
+          input.viewingDistanceCm,
+          spec.standardDistanceCm,
+        );
 
-  const zones = readingZones(readingAcuity, selected, input.viewingDistanceCm);
+  const zones = readingZones(
+    readingAcuity,
+    selected,
+    input.viewingDistanceCm,
+    spec.standardDistanceCm,
+  );
   const selection = buildSelectionRecord(estimates, selected, options);
 
   const qualityFlags = computeQualityFlags({
