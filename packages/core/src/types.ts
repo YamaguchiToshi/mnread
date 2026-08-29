@@ -11,7 +11,7 @@
  */
 
 /** SPEC.md の版。解析結果に必ず含める。 */
-export const SPEC_VERSION = "0.6.0";
+export const SPEC_VERSION = "0.6.2";
 
 /** 算出結果が変わりうる変更で必ず上げる（SPEC §10）。 */
 export const ALGORITHM_VERSION = "0.5.0";
@@ -348,6 +348,15 @@ export interface ReadingZone {
   /** 境界に対応する MNREAD-J 相当ポイント（測定距離基準）。開いている側は null */
   readonly minPoint: number | null;
   readonly maxPoint: number | null;
+  /**
+   * 同じ境界を**標準距離**（§5.2、30cm）で読む場合のポイント。開いている側は null。
+   *
+   * 測定距離基準の値と併記するためにある。測定距離が標準距離と異なるとき、
+   * この2つは D/30 倍だけ違う——どちらの距離での大きさなのかが分からない紙は、
+   * 患者にとっても支援者にとっても使えない（視能訓練士レビュー 2026-08）。
+   */
+  readonly minPointAtStandard: number | null;
+  readonly maxPointAtStandard: number | null;
   /** min >= max。RA > CPS の退化で「努力」が空になる場合に true（SPEC §5.8） */
   readonly empty: boolean;
 }
@@ -365,14 +374,27 @@ export interface ReadingZoneSet {
   readonly raAboveCps: boolean;
   /** ポイント換算に用いた距離（cm） */
   readonly targetDistanceCm: number;
+  /** `*PointAtStandard` の換算に用いた標準距離（cm） */
+  readonly standardDistanceCm: number;
+  /** 測定距離が標準距離と異なる。true のとき2組のポイント値は一致しない */
+  readonly nonStandardDistance: boolean;
 }
 
 /** CPS 相当と支援余裕を分離して保持する（SPEC §5.7）。 */
 export interface SupportRange {
-  /** CPS そのものに相当するポイント */
+  /** CPS そのものに相当するポイント（測定距離基準） */
   readonly lowerPoint: number;
-  /** CPS + margin に相当するポイント */
+  /** CPS + margin に相当するポイント（測定距離基準） */
   readonly upperPoint: number;
+  /** 同じ2値を標準距離（§5.2、30cm）で読む場合のポイント */
+  readonly lowerPointAtStandard: number;
+  readonly upperPointAtStandard: number;
+  /** `lowerPoint` / `upperPoint` の換算に用いた距離（cm） */
+  readonly targetDistanceCm: number;
+  /** `*PointAtStandard` の換算に用いた標準距離（cm） */
+  readonly standardDistanceCm: number;
+  /** 測定距離が標準距離と異なる。true のとき2組のポイント値は一致しない */
+  readonly nonStandardDistance: boolean;
   /** 加えた余裕（logMAR）。既定 0.1（≒1.26倍） */
   readonly marginLogMAR: number;
   /** 余裕に対応する倍率 10^margin */

@@ -114,7 +114,7 @@ The one caveat worth knowing: the chart's printed M sizes are R10 preferred numb
 
 ## Phase status
 
-**Phases 0–4 are complete.** 532 tests pass (core 378 + web 154).
+**Phases 0–4 are complete.** 549 tests pass (core 378 + web 171).
 
 `packages/core` is finished for clinical purposes: reading speed, distance correction, item states, reading acuity, unit conversions, validation, the plateau / CPS / MRS layer, the accessibility index, reading zones, and `analyze()`. Test detection power was confirmed by mutation testing — breaking a constant or a sign fails between 7 and 67 tests.
 
@@ -128,12 +128,13 @@ Deploys are gated: `pages.yml` runs typecheck, `verify:fixtures`, and the full s
 
 > Three UI defects in Phase 4 only appeared when the app was driven in a real browser — an SVG hit-test order problem, labels running off the plot, and the A4 report breaking across two pages. jsdom renders but does not lay out or hit-test. **For anything involving SVG geometry or print CSS, drive the real thing.** Measure the report in a **680 px viewport under `emulateMedia("print")`** — that is the A4 text block (180 mm); at the normal viewport the report reports a height it will never have on paper.
 
-## The A4 report fits on one page for three reasons — don't undo any of them
+## The A4 report fits on one page for four reasons — don't undo any of them
 
 SPEC §8.2.2 requires the zone table, the recommended-size box *and* the speed curve on the patient's sheet. Single-column, that is ~300 mm of content on a 265 mm page, and the curve — the item that can't be dropped — is what falls off the bottom.
 
 - **The lower half is two columns** (`.report-columns`): recommended size + specimen on the left, the curve on the right. This is load-bearing, not styling. `break-inside: avoid` on that grid pushes the whole block to page 2; it is deliberately absent.
 - **The figure's SVG text is enlarged only inside the two-column layout** (`.report-figure:not(:only-child)`). The SVG scales with its viewBox, so at an 85 mm column the 11.5 px ticks land at about 4 pt. When there is no CPS the figure becomes `:only-child`, spans the full width, and must *not* get the enlargement.
+- **`@page` carries no margin; `.report`'s print padding does.** The browser prints its own header/footer (title, date, URL) inside the page margin, and enlarges the margin you asked for to fit them — which pushes the curve onto page 2. At `margin: 0` there is nowhere to print them, so they don't appear. Putting margins back on `@page` means the report only fits on one page when the clinician remembers to switch headers off.
 - **Label placement in `SpeedCurve` may not depend on text width.** The MRS label is anchored to whichever end of the plateau span points inward, precisely so the same code survives the report's larger type. A centred label with a fixed pixel clamp overflowed the plot the moment the figure's font changed.
 
 The report also carries an **actual-size type specimen** (`pt` is physical, so it prints true at 100%) with a **50 mm calibration bar** so the recipient can detect shrink-to-fit printing. The bar is the only thing that makes the specimen safe to hand out; don't drop it. The specimen is a single character on purpose — a word overflows the column at large recommended sizes.

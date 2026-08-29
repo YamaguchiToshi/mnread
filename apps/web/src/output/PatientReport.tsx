@@ -5,7 +5,9 @@
  *   - 判読3ゾーン（SPEC §5.8）。境界は logMAR と MNREAD-J 相当ポイントの両方で示す
  *   - 推奨文字サイズ範囲は**ゾーンとは別枠**（ADR-0013）。CPS は「快適さの保証値」
  *     ではなく「最大速度を支える最小サイズ」であるため、両者を1つの数字に混ぜない
- *   - **氏名を入れない。** 患者に渡す紙であり、ID・実施日・測定距離までとする
+ *   - **氏名を入れない。** 患者に渡す紙であり、個人を指す情報は ID までとする
+ *   - 検査条件の表には**極性を入れ、チャート版は入れない**。極性はコントラスト条件
+ *     そのもので、これが分からない紙は後から読み直せない（視能訓練士レビュー 2026-08）
  *   - 参考値であって診断ではない旨と、ポイント値がフォント依存である旨を必ず載せる
  *   - CPS の算出法 ID を必ず併記する（ADR-0006）
  *
@@ -26,7 +28,14 @@ import type { JSX } from "react";
 
 import { SpeedCurve } from "../components/SpeedCurve.js";
 import { formatFixed, formatLogMAR } from "../format.js";
-import { CPS_METHOD_LABEL, CPS_METHOD_SHORT, EYE_LABEL, ZONE_LABEL, ZONE_SHORT } from "../labels.js";
+import {
+  CPS_METHOD_LABEL,
+  CPS_METHOD_SHORT,
+  EYE_LABEL,
+  POLARITY_LABEL,
+  ZONE_LABEL,
+  ZONE_SHORT,
+} from "../labels.js";
 import type { RowView } from "../session/derive.js";
 
 export interface PatientReportProps {
@@ -74,8 +83,8 @@ export function PatientReport({
           <dd>{input.variant}</dd>
         </div>
         <div>
-          <dt>チャート版</dt>
-          <dd>{input.chartVersion === "" ? "—" : input.chartVersion}</dd>
+          <dt>極性</dt>
+          <dd>{POLARITY_LABEL[input.polarity]}</dd>
         </div>
         <div>
           <dt>測定距離</dt>
@@ -98,12 +107,43 @@ export function PatientReport({
           <>
             <table className="zone-table" data-testid="zone-table">
               <thead>
-                <tr>
-                  <th scope="col">区分</th>
-                  <th scope="col">読みやすさ</th>
-                  <th scope="col">文字の大きさ（MNREAD-J相当）</th>
-                  <th scope="col">logMAR</th>
-                </tr>
+                {zones.nonStandardDistance ? (
+                  <>
+                    <tr>
+                      <th scope="col" rowSpan={2}>
+                        区分
+                      </th>
+                      <th scope="col" rowSpan={2}>
+                        読みやすさ
+                      </th>
+                      <th scope="colgroup" colSpan={2}>
+                        文字の大きさ（MNREAD-J相当）
+                      </th>
+                      <th scope="col" rowSpan={2}>
+                        logMAR
+                      </th>
+                    </tr>
+                    <tr>
+                      <th scope="col">
+                        {formatFixed(zones.targetDistanceCm, 0)} cm で読むとき
+                        <span className="zone-subhead">（この検査の距離）</span>
+                      </th>
+                      <th scope="col">
+                        {formatFixed(zones.standardDistanceCm, 0)} cm で読むとき
+                      </th>
+                    </tr>
+                  </>
+                ) : (
+                  <tr>
+                    <th scope="col">区分</th>
+                    <th scope="col">読みやすさ</th>
+                    <th scope="col">
+                      文字の大きさ（MNREAD-J相当・
+                      {formatFixed(zones.targetDistanceCm, 0)} cm で読むとき）
+                    </th>
+                    <th scope="col">logMAR</th>
+                  </tr>
+                )}
               </thead>
               <tbody>
                 {zones.zones.map((zone) => (
@@ -116,7 +156,18 @@ export function PatientReport({
                   >
                     <th scope="row">{ZONE_SHORT[zone.id]}</th>
                     <td>{ZONE_LABEL[zone.id]}</td>
-                    <td className="zone-num">{pointRange(zone)}</td>
+                    <td className="zone-num">
+                      {pointRange(zone.minPoint, zone.maxPoint, zone.empty)}
+                    </td>
+                    {zones.nonStandardDistance && (
+                      <td className="zone-num" data-testid="zone-point-standard">
+                        {pointRange(
+                          zone.minPointAtStandard,
+                          zone.maxPointAtStandard,
+                          zone.empty,
+                        )}
+                      </td>
+                    )}
                     <td className="zone-num">{logMARRange(zone)}</td>
                   </tr>
                 ))}
@@ -148,7 +199,9 @@ export function PatientReport({
         SPEC §8.2.2 の必須項目なので落とせない。「どの大きさを用意するか」と
         「その根拠になった測定」を左右に並べるのは、読み手にとっても自然である。
       */}
-      <div className="report-columns">
+      <div
+        className={`report-columns${support === null ? " report-columns-single" : ""}`}
+      >
       {/* --- 推奨サイズ：ゾーンとは別枠（ADR-0013） --- */}
       {support !== null && (
         <section className="report-section" data-testid="support-range">
@@ -159,6 +212,15 @@ export function PatientReport({
               <dd>
                 <strong>{formatFixed(support.lowerPoint, 0)}</strong>
                 <span className="support-unit">ポイント</span>
+                <span className="support-dist">
+                  （{formatFixed(support.targetDistanceCm, 0)} cm で読むとき）
+                </span>
+                {support.nonStandardDistance && (
+                  <span className="support-alt" data-testid="support-lower-standard">
+                    {formatFixed(support.standardDistanceCm, 0)} cm で読むときは{" "}
+                    <b>{formatFixed(support.lowerPointAtStandard, 0)}</b> ポイント
+                  </span>
+                )}
                 <span className="detail">
                   いちばん速く読める大きさの下限です。これより小さいと読む速さが落ちます。
                 </span>
@@ -169,6 +231,15 @@ export function PatientReport({
               <dd>
                 <strong>{formatFixed(support.upperPoint, 0)}</strong>
                 <span className="support-unit">ポイント</span>
+                <span className="support-dist">
+                  （{formatFixed(support.targetDistanceCm, 0)} cm で読むとき）
+                </span>
+                {support.nonStandardDistance && (
+                  <span className="support-alt" data-testid="support-upper-standard">
+                    {formatFixed(support.standardDistanceCm, 0)} cm で読むときは{" "}
+                    <b>{formatFixed(support.upperPointAtStandard, 0)}</b> ポイント
+                  </span>
+                )}
                 <span className="detail">
                   下限の約 {formatFixed(support.marginRatio, 2)} 倍。長く読むときや、
                   照明・体調が変わる場面ではこちらを目安にしてください。
@@ -182,7 +253,10 @@ export function PatientReport({
             （丸めるのは横のラベルだけ。ADR-0003）。
           */}
           <div className="specimen" data-testid="specimen">
-            <p className="specimen-head">実物大の見本（この紙を 100% で印刷した場合）</p>
+            <p className="specimen-head">
+              実物大の見本（この紙を 100% で印刷した場合・
+              {formatFixed(support.targetDistanceCm, 0)} cm で読むとき）
+            </p>
             <div className="specimen-rows">
               {/*
                 見本は1文字にする。推奨サイズが大きい患者ほど文字を並べたときの
@@ -224,15 +298,20 @@ export function PatientReport({
             </div>
           </div>
 
-          {result.cpsConversion !== null && (
-            <p className="report-note" data-testid="magnification">
-              新聞の文字（1M）を基準にすると、およそ{" "}
-              {formatFixed(result.cpsConversion.mValue, 1)} 倍の大きさにあたります。
-            </p>
-          )}
+          {/*
+            M値（新聞の文字に対する倍率）はこの紙に載せない。現場での説明と
+            合わないため削除した（視能訓練士レビュー 2026-08）。M値そのものは
+            電子カルテ用テキストと書き出しに残っている。
+          */}
         </section>
       )}
 
+      {/*
+        右段は「図 → 注意書き」の縦積みにする。段の兄弟として並べると、
+        注意書きは左段（推奨サイズ＋見本）より下に回され、曲線の下に空いている
+        場所を使えない。
+      */}
+      <div className="report-column-right">
       {/* --- グラフ（SPEC §8.2.2 の必須項目。ベクタのまま刷る） --- */}
       <section className="report-section report-figure">
         <h2>文字の大きさと読む速さ</h2>
@@ -249,8 +328,12 @@ export function PatientReport({
           }}
         />
       </section>
-      </div>
 
+      {/*
+        注意書きは曲線の下——2段組の右段に置く。段の外に出すと紙の全幅を使い、
+        その高さのぶんだけ2枚目へ落ちる。参考値である旨と仕様版は、曲線と同じ
+        紙の上になければ意味がない（SPEC §8.1）。
+      */}
       <footer className="report-footer">
         <p>
           この結果は、読書に必要な文字の大きさを見積もるための<strong>参考値</strong>です。
@@ -267,19 +350,24 @@ export function PatientReport({
           （院内ツール。実測による検証は継続中）
         </p>
       </footer>
+      </div>
+      </div>
     </article>
   );
 }
 
 /* ---------------------------------------------------------- */
 
-function pointRange(zone: ReadingZone): string {
-  const min = zone.minPoint;
-  const max = zone.maxPoint;
+/**
+ * 境界のポイント範囲。測定距離の組と標準距離の組の**どちらにも**使うため、
+ * 帯そのものではなく2つの境界値を受ける。core が返した値を並べるだけで、
+ * ここで距離換算はしない（ADR-0010）。
+ */
+function pointRange(min: number | null, max: number | null, empty: boolean): string {
   if (min === null && max !== null) return `${formatFixed(max, 0)} pt より小さい`;
   if (min !== null && max === null) return `${formatFixed(min, 0)} pt 以上`;
   if (min === null || max === null) return "—";
-  if (zone.empty) return "該当なし";
+  if (empty) return "該当なし";
   return `${formatFixed(min, 0)} 〜 ${formatFixed(max, 0)} pt`;
 }
 

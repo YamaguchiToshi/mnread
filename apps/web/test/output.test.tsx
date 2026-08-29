@@ -92,7 +92,7 @@ describe("電子カルテ用テキスト", () => {
   });
 
   it("仕様版とアルゴリズム版を必ず添える（SPEC §10）", () => {
-    expect(text).toContain("仕様 0.6.0 / アルゴリズム 0.5.0");
+    expect(text).toContain("仕様 0.6.2 / アルゴリズム 0.5.0");
   });
 
   it("上書きした判定は理由つきで残る（SPEC §8.4）", () => {
@@ -174,7 +174,7 @@ describe("生データ書き出し", () => {
       specVersion: string;
       result: AnalysisResult;
     };
-    expect(parsed.specVersion).toBe("0.6.0");
+    expect(parsed.specVersion).toBe("0.6.2");
     // 表示は 1.10 だが、書き出しは倍精度のまま出る（ADR-0003）
     expect(parsed.result.readingAcuity!.raCorrectedLogMAR).toBeCloseTo(
       1.0976966623306477,
@@ -233,6 +233,60 @@ describe("A4 患者・支援者向けレポート", () => {
     expect(effortful).toHaveTextContent("1.10 〜 1.40");
   });
 
+  /*
+   * pt は物理量であり、読む距離を決めなければ大きさが決まらない。測定例は
+   * 15cm 測定なので、標準の 30cm で読む場合はちょうど倍の文字が要る。
+   * どちらの距離の数字なのか紙面から分からない状態は、そのまま取り違えになる
+   * （視能訓練士レビュー 2026-08）。
+   */
+  it("標準距離と違う距離で測ったときは、両方の距離での大きさを併記する", async () => {
+    await openOutput();
+
+    const table = screen.getByTestId("zone-table");
+    expect(table).toHaveTextContent("15 cm で読むとき");
+    expect(table).toHaveTextContent("30 cm で読むとき");
+
+    const comfortable = screen
+      .getAllByTestId("zone-row")
+      .find((r) => r.getAttribute("data-zone") === "comfortable")!;
+    // CPS 1.40 logMAR: 15cm で 35 pt、30cm では 70 pt
+    expect(comfortable).toHaveTextContent("35 pt 以上");
+    expect(within(comfortable).getByTestId("zone-point-standard")).toHaveTextContent(
+      "70 pt 以上",
+    );
+
+    const support = screen.getByTestId("support-range");
+    expect(support).toHaveTextContent("15 cm で読むとき");
+    expect(screen.getByTestId("support-lower-standard")).toHaveTextContent(
+      "30 cm で読むときは 70 ポイント",
+    );
+    expect(screen.getByTestId("support-upper-standard")).toHaveTextContent(
+      "30 cm で読むときは 88 ポイント",
+    );
+  });
+
+  it("標準距離で測ったときは1組だけを、距離を明記して出す", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await enterCleanTwoLimb(user); // 視距離 30cm
+    await user.click(screen.getByTestId("tab-output"));
+
+    const table = screen.getByTestId("zone-table");
+    expect(table).toHaveTextContent("30 cm で読むとき");
+    // 同じ数字を2列並べない
+    expect(within(table).queryAllByTestId("zone-point-standard")).toEqual([]);
+    expect(screen.queryByTestId("support-lower-standard")).toBeNull();
+    expect(screen.getByTestId("support-range")).toHaveTextContent("30 cm で読むとき");
+  });
+
+  it("新聞の文字に対する倍率は患者向けの紙に載せない", async () => {
+    // 現場での説明に合わないため落とした（視能訓練士レビュー 2026-08）。
+    // M値は電子カルテ用テキストと書き出しには残る。
+    await openOutput();
+    expect(screen.getByTestId("patient-report")).not.toHaveTextContent("新聞");
+    expect(screen.getByTestId("emr-text")).toHaveTextContent("10.0M");
+  });
+
   it("推奨サイズはゾーンとは別枠に出し、下限と余裕を分ける", async () => {
     await openOutput();
 
@@ -254,6 +308,14 @@ describe("A4 患者・支援者向けレポート", () => {
     const report = screen.getByTestId("patient-report");
     expect(report).toHaveTextContent("氏名は記載していません");
     expect(within(report).queryByLabelText(/氏名/)).toBeNull();
+  });
+
+  it("検査条件の表は極性を載せ、チャート版は載せない（視能訓練士レビュー 2026-08）", async () => {
+    await openOutput();
+    const meta = screen.getByTestId("report-meta");
+    expect(meta).toHaveTextContent("極性");
+    expect(meta).toHaveTextContent("白地に黒");
+    expect(within(meta).queryByText("チャート版")).toBeNull();
   });
 
   it("参考値であり診断ではない旨と、pt がフォント依存である旨を載せる", async () => {

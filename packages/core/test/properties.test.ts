@@ -303,8 +303,11 @@ describe("単位換算", () => {
         fc.double({ min: 0, max: 0.5, noNaN: true, noDefaultInfinity: true }),
         arbDistance,
         (l, margin, d) => {
-          const r = supportRange(l, margin, d);
+          const r = supportRange(l, margin, d, 30);
           expect(r.upperPoint).toBeGreaterThanOrEqual(r.lowerPoint);
+          expect(r.upperPointAtStandard).toBeGreaterThanOrEqual(r.lowerPointAtStandard);
+          // 測定距離と標準距離の値は D/30 倍だけ違う（§5.7 の pt_D = pt_30 × D/30）
+          expect(r.lowerPoint / r.lowerPointAtStandard).toBeCloseTo(d / 30, 10);
           expect(r.marginRatio).toBeCloseTo(10 ** margin, 12);
         },
       ),

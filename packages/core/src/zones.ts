@@ -11,7 +11,7 @@
  * として別枠に出す。
  */
 
-import { pointSizeAtDistance } from "./convert.js";
+import { isNonStandardDistance, pointSizeAtDistance } from "./convert.js";
 import type {
   CpsEstimate,
   ReadingAcuityResult,
@@ -29,11 +29,15 @@ import type {
  * RA > CPS の退化（誤りが多く RA の誤り項に押し上げられた場合）では、値を
  * 入れ替えず「努力」を空のゾーンとして返す。呼び出し側は `raAboveCps` を見て
  * `RA_ABOVE_CPS` を立てる。
+ *
+ * 各境界のポイントは**測定距離と標準距離の両方**を返す（SPEC §5.8）。ポイントは
+ * 物理量であり、読む距離を決めなければ大きさが決まらない。
  */
 export function readingZones(
   readingAcuity: ReadingAcuityResult | null,
   cps: CpsEstimate | null,
   targetDistanceCm: number,
+  standardDistanceCm: number,
 ): ReadingZoneSet | null {
   if (readingAcuity === null) return null;
   if (cps === null || !cps.estimable || cps.cpsCorrectedLogMAR === null) return null;
@@ -42,8 +46,8 @@ export function readingZones(
   const cpsLogMAR = cps.cpsCorrectedLogMAR;
   if (!Number.isFinite(ra) || !Number.isFinite(cpsLogMAR)) return null;
 
-  const toPoint = (logMAR: number | null): number | null =>
-    logMAR === null ? null : pointSizeAtDistance(logMAR, targetDistanceCm);
+  const toPoint = (logMAR: number | null, distanceCm: number): number | null =>
+    logMAR === null ? null : pointSizeAtDistance(logMAR, distanceCm);
 
   const zone = (
     id: ReadingZoneId,
@@ -53,8 +57,10 @@ export function readingZones(
     id,
     minCorrectedLogMAR: min,
     maxCorrectedLogMAR: max,
-    minPoint: toPoint(min),
-    maxPoint: toPoint(max),
+    minPoint: toPoint(min, targetDistanceCm),
+    maxPoint: toPoint(max, targetDistanceCm),
+    minPointAtStandard: toPoint(min, standardDistanceCm),
+    maxPointAtStandard: toPoint(max, standardDistanceCm),
     empty: min !== null && max !== null && min >= max,
   });
 
@@ -70,6 +76,8 @@ export function readingZones(
     raCensored: readingAcuity.censored,
     raAboveCps: ra > cpsLogMAR,
     targetDistanceCm,
+    standardDistanceCm,
+    nonStandardDistance: isNonStandardDistance(targetDistanceCm, standardDistanceCm),
   };
 }
 

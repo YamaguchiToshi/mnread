@@ -111,7 +111,9 @@ export function OutputPanel({ view }: OutputPanelProps): JSX.Element {
           <p className="detail">
             氏名は入りません。上端はレターヘッド用紙・院印のために空けてあります。
             推奨サイズの見本は<strong>倍率 100%</strong>で印刷したときに実物大になります
-            （紙面の 50 mm 目盛りで確かめられます）。
+            （紙面の 50 mm 目盛りで確かめられます）。ブラウザが刷るヘッダ・フッタ
+            （日付や URL）は出ないようにしてあります。もし出る場合は、印刷ダイアログの
+            「ヘッダーとフッター」をオフにしてください。
           </p>
         </div>
         <div className="paper-preview">

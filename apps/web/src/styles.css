@@ -1611,8 +1611,23 @@ kbd {
   align-items: start;
 }
 
-.report-columns > :only-child {
-  grid-column: 1 / -1;
+/*
+ * 推奨サイズが出ない検査（CPS 推定不能）は2段に割らず1段で組む。
+ *
+ * 以前は「図が :only-child かどうか」で判断していたが、段の中に別の要素を
+ * 置いた瞬間に成立しなくなる。どちらの組み方かは描画側が知っているので、
+ * クラスで明示する。
+ */
+.report-columns-single {
+  grid-template-columns: 1fr;
+}
+
+/*
+ * 右段は図と注意書きの縦積み。段の直下に並べると、注意書きは左段より下に
+ * 回されてしまい、曲線の下の空きを使えない（全幅に置くのと同じことになる）。
+ */
+.report-column-right {
+  min-width: 0;
 }
 
 .report h2 {
@@ -1647,6 +1662,15 @@ kbd {
   letter-spacing: 0.06em;
   padding-block: 1.4mm;
   color: #333;
+}
+
+/* 2段見出しの下段に添える補足（測定距離がどちらの列かを示す） */
+.zone-subhead {
+  display: block;
+  font-weight: 400;
+  letter-spacing: 0;
+  font-size: 7.5pt;
+  color: #555;
 }
 
 .zone-table .zone-num {
@@ -1717,6 +1741,32 @@ kbd {
   font-size: 10pt;
   font-weight: 600;
   margin-left: 1mm;
+}
+
+/*
+ * ポイントは物理量であり、読む距離を決めなければ大きさが決まらない。数字の
+ * すぐ下に距離を置く。測定距離が標準距離と違うときは、標準距離での値も併記する
+ * （視能訓練士レビュー 2026-08）。
+ */
+/* 大きな数字と同じ行に置く。行を増やすと紙面が1枚に収まらなくなる */
+.support-dist {
+  font-size: 8.5pt;
+  font-weight: 600;
+  color: #333;
+  margin-left: 0.8mm;
+  white-space: nowrap;
+}
+
+.support-alt {
+  display: block;
+  font-size: 8.5pt;
+  color: #333;
+  margin-top: 0.3mm;
+}
+
+.support-alt b {
+  font-size: 11pt;
+  font-variant-numeric: tabular-nums;
 }
 
 .support-list .detail {
@@ -1846,25 +1896,25 @@ kbd {
  * ので、画面と同じ字送りだと目盛が 4pt 相当になり読めない。図の中だけ文字と線を
  * 太らせ、刷り上がりで 7pt 前後に着地させる。
  *
- * 推奨サイズが出ない検査では図が全幅（:only-child）に戻り、縮小が効かない。
+ * 推奨サイズが出ない検査では図が全幅（1段組）に戻り、縮小が効かない。
  * そのときに同じ拡大をかけると今度は目盛が大きすぎるので、2段のときだけに絞る。
  */
-.report-figure:not(:only-child) .tick,
-.report-figure:not(:only-child) .axis-label,
-.report-figure:not(:only-child) .overlay-label {
+.report-columns:not(.report-columns-single) .tick,
+.report-columns:not(.report-columns-single) .axis-label,
+.report-columns:not(.report-columns-single) .overlay-label {
   font-size: 18px;
 }
 
-.report-figure:not(:only-child) .curve-line {
+.report-columns:not(.report-columns-single) .curve-line {
   stroke-width: 3;
 }
 
-.report-figure:not(:only-child) .cps-line,
-.report-figure:not(:only-child) .mrs-line {
+.report-columns:not(.report-columns-single) .cps-line,
+.report-columns:not(.report-columns-single) .mrs-line {
   stroke-width: 2.75;
 }
 
-.report-figure:not(:only-child) .axis {
+.report-columns:not(.report-columns-single) .axis {
   stroke-width: 1.5;
 }
 
@@ -1873,13 +1923,19 @@ kbd {
   font-size: 8.5pt;
 }
 
+/*
+ * 注意書き。曲線の下の余りに囲みで収める。
+ *
+ * 全幅の帯として置いていたときは、その高さのぶんだけ紙が伸びて2枚目に落ちて
+ * いた。囲むことで、図の下の空きに入っていることが見た目にも分かる。
+ */
 .report-footer {
-  margin-top: 7mm;
-  padding-top: 2.5mm;
-  border-top: 0.75pt solid #9aa1ac;
-  font-size: 8.5pt;
+  margin-top: 3mm;
+  padding: 2mm 3mm;
+  border: 0.75pt solid #b6bcc5;
+  font-size: 8pt;
   color: #333;
-  line-height: 1.5;
+  line-height: 1.45;
 }
 
 .report-footer p {
@@ -1903,10 +1959,20 @@ kbd {
    ============================================================ */
 
 @media print {
+  /*
+   * 用紙余白を 0 にし、余白は .report の padding が持つ。
+   *
+   * ブラウザの印刷ヘッダ・フッタ（ページタイトル・日付・URL）は用紙余白の中に
+   * 刷られる。余白があると、ブラウザはそれを収めるために指定した余白を勝手に
+   * 広げ、そのぶん本文が押し出されて曲線が2枚目に落ちる。余白を 0 にすると
+   * 刷る場所そのものが無くなるため、ヘッダ・フッタは出ない。
+   *
+   * これは1枚に収めるための条件である。@page に余白を戻すなら、ヘッダ・フッタ
+   * を切った状態でしか1枚に収まらないことを承知の上で行うこと。
+   */
   @page {
     size: A4 portrait;
-    /* 上端はレターヘッド・院印のために広くとる */
-    margin: 20mm 15mm 10mm;
+    margin: 0;
   }
 
   :root {
@@ -1942,8 +2008,8 @@ kbd {
     max-width: none;
     min-height: 0;
     margin: 0;
-    /* 用紙余白は @page が持つ。ここでは罫線が刷り落ちない程度に内側へ寄せるだけ */
-    padding: 0 1mm;
+    /* 用紙余白はここが持つ（@page は 0）。上端はレターヘッド・院印のために広くとる */
+    padding: 20mm 15mm 10mm;
     border: none;
     box-shadow: none;
     font-size: 10.5pt;
@@ -1979,7 +2045,7 @@ kbd {
   /* 注意書きだけが2枚目に落ちるのを防ぐ。参考値である旨は図と同じ紙にある必要がある */
   .report-footer {
     break-inside: avoid;
-    margin-top: 4mm;
+    margin-top: 3mm;
   }
 
   .curve svg {

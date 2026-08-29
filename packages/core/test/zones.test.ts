@@ -174,11 +174,11 @@ describe("ゾーンを出さない条件", () => {
   });
 
   it("RA が算出できなければゾーンは null", () => {
-    expect(readingZones(null, estimableCps(1.0), 30)).toBeNull();
+    expect(readingZones(null, estimableCps(1.0), 30, 30)).toBeNull();
   });
 
   it("CPS 推定値が null でもゾーンは null", () => {
-    expect(readingZones(acuity(0.5), null, 30)).toBeNull();
+    expect(readingZones(acuity(0.5), null, 30, 30)).toBeNull();
   });
 });
 
@@ -247,7 +247,7 @@ describe("RA > CPS の退化（SPEC §5.8）", () => {
    ============================================================ */
 
 describe("classifyZone()", () => {
-  const zones = readingZones(acuity(0.5), estimableCps(1.0), 30)!;
+  const zones = readingZones(acuity(0.5), estimableCps(1.0), 30, 30)!;
 
   it("境界は下側の帯に含まれない（半開区間 [min, max)）", () => {
     expect(classifyZone(zones, 0.5)).toBe("effortful");

@@ -96,7 +96,10 @@ export function unitConversion(
 /**
  * 支援用サイズ範囲（SPEC §5.7）。
  *
- * 下限は CPS そのもの、上限は CPS に余裕を加えたサイズ。
+ * 下限は CPS そのもの、上限は CPS に余裕を加えたサイズ。**測定距離での値と
+ * 標準距離での値を両方返す。** ポイントは物理量なので、どの距離で読むかを
+ * 決めないと大きさが決まらない。片方だけを返すと、受け取った側が「どちらの
+ * 距離の数字か」を紙面から知る手立てがなくなる（視能訓練士レビュー 2026-08）。
  * CPS は「快適さを保証する推奨サイズ」ではなく「最大速度を支える最小サイズ」
  * であるため、この2つを混ぜて1つの推奨値として提示してはならない。
  *
@@ -107,18 +110,35 @@ export function supportRange(
   cpsCorrectedLogMAR: number,
   marginLogMAR: number,
   targetDistanceCm: number,
+  standardDistanceCm: number,
 ): SupportRange {
   assertFinite(cpsCorrectedLogMAR, "cpsCorrectedLogMAR");
   assertFinite(marginLogMAR, "marginLogMAR");
+  const upperLogMAR = cpsCorrectedLogMAR + marginLogMAR;
   return {
     lowerPoint: pointSizeAtDistance(cpsCorrectedLogMAR, targetDistanceCm),
-    upperPoint: pointSizeAtDistance(
-      cpsCorrectedLogMAR + marginLogMAR,
-      targetDistanceCm,
-    ),
+    upperPoint: pointSizeAtDistance(upperLogMAR, targetDistanceCm),
+    lowerPointAtStandard: pointSizeAtDistance(cpsCorrectedLogMAR, standardDistanceCm),
+    upperPointAtStandard: pointSizeAtDistance(upperLogMAR, standardDistanceCm),
+    targetDistanceCm,
+    standardDistanceCm,
+    nonStandardDistance: isNonStandardDistance(targetDistanceCm, standardDistanceCm),
     marginLogMAR,
     marginRatio: Math.pow(10, marginLogMAR),
   };
+}
+
+/**
+ * 測定距離が標準距離と異なるか。
+ *
+ * 表示側が距離を比べる算術を書かずに済むよう、判定を core に置く（ADR-0010）。
+ * 許容差は §5.6 の `nonStandardDistance` と同じ 1e-9。
+ */
+export function isNonStandardDistance(
+  targetDistanceCm: number,
+  standardDistanceCm: number,
+): boolean {
+  return Math.abs(targetDistanceCm - standardDistanceCm) > 1e-9;
 }
 
 function assertFinite(value: number, name: string): void {

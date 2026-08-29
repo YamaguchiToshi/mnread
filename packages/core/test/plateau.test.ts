@@ -454,7 +454,7 @@ describe("analyze() 全体", () => {
       exp.mrsArithmetic,
       9,
     );
-    expect(r.specVersion).toBe("0.6.0");
+    expect(r.specVersion).toBe("0.6.2");
     expect(r.algorithmVersion).toBe("0.5.0");
   });
 
