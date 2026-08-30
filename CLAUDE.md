@@ -114,7 +114,7 @@ The one caveat worth knowing: the chart's printed M sizes are R10 preferred numb
 
 ## Phase status
 
-**Phases 0–4 are complete.** 549 tests pass (core 378 + web 171).
+**Phases 0–4 are complete.** 552 tests pass (core 378 + web 174).
 
 `packages/core` is finished for clinical purposes: reading speed, distance correction, item states, reading acuity, unit conversions, validation, the plateau / CPS / MRS layer, the accessibility index, reading zones, and `analyze()`. Test detection power was confirmed by mutation testing — breaking a constant or a sign fails between 7 and 67 tests.
 
