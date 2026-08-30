@@ -22,9 +22,11 @@ import type { SessionView } from "../session/derive.js";
 
 export interface OutputPanelProps {
   readonly view: SessionView;
+  /** 見本の紙面（開発ビルドのみ）。レポートに「SAMPLE」の透かしを重ねる */
+  readonly sample?: boolean;
 }
 
-export function OutputPanel({ view }: OutputPanelProps): JSX.Element {
+export function OutputPanel({ view, sample = false }: OutputPanelProps): JSX.Element {
   const [copied, setCopied] = useState(false);
 
   if (!view.outcome.ok) {
@@ -112,6 +114,7 @@ export function OutputPanel({ view }: OutputPanelProps): JSX.Element {
             氏名は入りません。上端はレターヘッド用紙・院印のために空けてあります。
             推奨サイズの見本は<strong>倍率 100%</strong>で印刷したときに実物大になります
             （紙面の 50 mm 目盛りで確かめられます。短ければ縮小されています）。
+            刷る前に<strong>ブラウザの表示倍率を 100%</strong>（⌘0 / Ctrl+0）に戻してください。
             印刷ダイアログでは<strong>用紙サイズを A4</strong>に、
             <strong>「ヘッダーとフッター」をオフ</strong>にしてください。
             用紙がレターのままだと紙面全体が約 6% 拡大・縮小され、見本が実物大でなくなります。
@@ -119,7 +122,12 @@ export function OutputPanel({ view }: OutputPanelProps): JSX.Element {
           </p>
         </div>
         <div className="paper-preview">
-          <PatientReport result={result} rows={view.rows} plateauRows={plateauRows} />
+          <PatientReport
+            result={result}
+            rows={view.rows}
+            plateauRows={plateauRows}
+            sample={sample}
+          />
         </div>
       </div>
 

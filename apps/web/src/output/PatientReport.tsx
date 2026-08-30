@@ -43,12 +43,21 @@ export interface PatientReportProps {
   readonly rows: readonly RowView[];
   /** グラフに重ねるプラトー（rows の添字） */
   readonly plateauRows: readonly number[];
+  /**
+   * 見本の紙面。「SAMPLE」の透かしを重ねる。
+   *
+   * 合成データの見本を実際の結果と取り違えないためのもので、開発ビルドの
+   * `?sample` からしか立たない（`src/sample/sampleSession.ts`）。公開ビルドでは
+   * スイッチが定数 false に畳まれるため、この紙面が出ることはない。
+   */
+  readonly sample?: boolean;
 }
 
 export function PatientReport({
   result,
   rows,
   plateauRows,
+  sample = false,
 }: PatientReportProps): JSX.Element {
   const input = result.input;
   const zones = result.zones;
@@ -57,6 +66,24 @@ export function PatientReport({
 
   return (
     <article className="report" data-testid="patient-report">
+      {/*
+        透かし。
+
+        絶対配置で本文の組版に影響させない（高さを持たない）。背景画像ではなく
+        文字で置くのは、ブラウザの「背景のグラフィック」がオフのときに背景だけが
+        刷られないためである。
+
+        **回すのは文字だけで、外側の箱は回さない。** 紙面いっぱいの箱（180×267mm）
+        を 30° 回すと外接幅が 289mm になり、用紙をはみ出す。Chrome は用紙に収める
+        ため紙面全体を縮小し（実測 0.72 倍）、見本の文字も校正目盛りも道連れに縮む。
+        外側は回さずに切り抜き（overflow）だけを持たせ、はみ出しを紙面の外へ
+        出さない。
+      */}
+      {sample && (
+        <p className="report-watermark" data-testid="report-watermark" aria-hidden="true">
+          <span>SAMPLE</span>
+        </p>
+      )}
       <header className="report-header">
         <h1>読書の評価結果</h1>
         <p className="report-lede">
@@ -130,6 +157,7 @@ export function PatientReport({
                       </th>
                       <th scope="col">
                         {formatFixed(zones.standardDistanceCm, 0)} cm で読むとき
+                        <span className="zone-subhead">（標準の距離）</span>
                       </th>
                     </tr>
                   </>
@@ -174,13 +202,22 @@ export function PatientReport({
               </tbody>
             </table>
 
+            {/*
+              括弧の入れ子（…（…（…）…）…）は紙の上で追えない。文を切って、
+              算出法は独立した1文にする。ADR-0006 の「値と算出法IDを離さない」は
+              同じ段落にあれば満たされる。
+            */}
             <p className="report-note">
-              区切りは、読める限界の大きさ（読書視力{" "}
-              {formatLogMAR(zones.raCorrectedLogMAR)} logMAR
-              {zones.raCensored ? "、これより小さい字は未確認" : ""}）と、
-              最も速く読める最小の大きさ（臨界文字サイズ{" "}
-              {formatLogMAR(zones.cpsCorrectedLogMAR)} logMAR、
-              {CPS_METHOD_LABEL[zones.cpsMethod]}による）です。
+              区切りは2つです。読める限界の大きさ＝
+              <span className="nobr">
+                読書視力 {formatLogMAR(zones.raCorrectedLogMAR)} logMAR
+              </span>
+              {zones.raCensored ? "（これより小さい字は未確認）" : ""}、
+              最も速く読める最小の大きさ＝
+              <span className="nobr">
+                臨界文字サイズ {formatLogMAR(zones.cpsCorrectedLogMAR)} logMAR
+              </span>
+              。臨界文字サイズは{CPS_METHOD_LABEL[zones.cpsMethod]}で決めています。
             </p>
             {zones.raAboveCps && (
               <p className="report-warn" data-testid="zone-degenerate">
@@ -254,8 +291,11 @@ export function PatientReport({
           */}
           <div className="specimen" data-testid="specimen">
             <p className="specimen-head">
-              実物大の見本（この紙を 100% で印刷した場合・
-              {formatFixed(support.targetDistanceCm, 0)} cm で読むとき）
+              実物大の見本
+              <span className="nobr">
+                （100% で印刷した場合・{formatFixed(support.targetDistanceCm, 0)} cm
+                で読むとき）
+              </span>
             </p>
             <div className="specimen-rows">
               {/*
@@ -291,16 +331,21 @@ export function PatientReport({
               </span>
             </div>
             <div className="specimen-scale">
-              <span className="specimen-ruler" aria-hidden="true" />
+              {/* 目盛りそのものに全長を書く。注記を読まなくても何を測る線か分かる */}
+              <span className="specimen-ruler-row">
+                <span className="specimen-ruler" aria-hidden="true" />
+                <span className="specimen-ruler-label">50 mm</span>
+              </span>
               {/*
                 長い側も書く。ブラウザによっては紙に合わせて拡大される
                 （実測: Chrome 47mm / Safari 53mm）。「短ければ」だけでは、
                 拡大されている紙を実物大として渡してしまう。
               */}
               <p className="specimen-scale-note">
-                目盛りは1目盛り 10 mm・全長 50 mm です。定規で測って 50 mm でなければ、
-                この見本は実物大ではありません（短ければ縮小、長ければ拡大されています）。
-                その場合は印刷の倍率を 100%・「用紙に合わせる」をオフにして刷り直してください。
+                この線を定規で測って <span className="nobr">50 mm</span>{" "}
+                でなければ、見本は実物大ではありません
+                <span className="nobr">（短ければ縮小、長ければ拡大）</span>。
+                用紙 A4・倍率 100% で刷り直してください。
               </p>
             </div>
           </div>

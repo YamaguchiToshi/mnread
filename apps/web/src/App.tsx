@@ -29,6 +29,7 @@ import {
   plateauRowsFromBoundary,
   togglePlateauRow,
 } from "./session/derive.js";
+import { sampleRequested, sampleSession } from "./sample/sampleSession.js";
 import { createHistory, reduce } from "./session/reducer.js";
 import { entryOrder, hasEnteredData } from "./session/state.js";
 
@@ -75,7 +76,15 @@ function stepState(
 }
 
 export function App(): JSX.Element {
-  const [history, dispatch] = useReducer(reduce, undefined, () => createHistory());
+  /*
+   * 見本用の合成データ（開発ビルドのみ）。データと「SAMPLE」の透かしは同じ
+   * スイッチから出す。片方だけを切り替えられると、透かしのない見本や、
+   * 透かしの付いた実検査が作れてしまう。
+   */
+  const sample = sampleRequested();
+  const [history, dispatch] = useReducer(reduce, undefined, () =>
+    createHistory(sample ? sampleSession() : undefined),
+  );
   const [openStatusMenuFor, setOpenStatusMenuFor] = useState<number | null>(null);
   const [focusedRowIndex, setFocusedRowIndex] = useState<number | null>(null);
   const [paused, setPaused] = useState(false);
@@ -308,7 +317,7 @@ export function App(): JSX.Element {
 
       {screen === "output" && (
         <main className="app-body app-body-single">
-          <OutputPanel view={view} />
+          <OutputPanel view={view} sample={sample} />
         </main>
       )}
     </div>
