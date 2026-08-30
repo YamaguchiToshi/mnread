@@ -1511,6 +1511,7 @@ kbd {
    ============================================================ */
 
 .report {
+  position: relative; /* 「SAMPLE」の透かしの基準 */
   width: 210mm;
   max-width: 100%;
   min-height: 297mm;
@@ -1638,6 +1639,44 @@ kbd {
   padding-bottom: 1mm;
   border-bottom: 0.75pt solid #9aa1ac;
   color: #000;
+}
+
+/*
+ * 見本の紙面に重ねる「SAMPLE」（開発ビルドのみ）。
+ *
+ * 絶対配置で組版に影響させない。背景画像ではなく文字で置くのは、ブラウザの
+ * 「背景のグラフィック」がオフだと背景が刷られず、透かしのない見本が出て
+ * しまうためである。本文の上に置くが、薄墨なので下の値は読める。
+ */
+.report-watermark {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  /*
+   * **この箱は回さない。** 紙面いっぱいの箱を回すと外接矩形が用紙より広くなり
+   * （180×267mm を 30° で 289mm）、Chrome が用紙に収めるため紙面全体を縮小する。
+   * 実測 0.72 倍まで縮み、実物大の見本も校正目盛りも一緒に縮んだ。
+   * 回転は中の文字だけに掛け、はみ出しはここで切り落とす。
+   */
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+}
+
+.report-watermark span {
+  transform: rotate(-30deg);
+  white-space: nowrap;
+  font-size: 84pt;
+  font-weight: 700;
+  letter-spacing: 0.25em;
+  /* letter-spacing は最後の字の右にも入る。その分だけ左へ戻して中央に見せる */
+  text-indent: 0.25em;
+  /* 見本は組版を確かめるための紙でもある。値が読めなくなる濃さにはしない */
+  color: #c9cfd8;
+  opacity: 0.45;
 }
 
 /* ---------- 判読3ゾーン ---------- */
@@ -1842,8 +1881,37 @@ kbd {
   border-top: 0.5pt solid #cfd4db;
 }
 
+/* 数字と単位、鍵になる語を行またぎで割らないための逃げ */
+.nobr {
+  white-space: nowrap;
+}
+
+/* 注意書きの「参考値」は文の要。ここが割れると読み落とされる */
+.report-footer strong {
+  white-space: nowrap;
+}
+
+.specimen-ruler-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 1.5mm;
+}
+
+.specimen-ruler-label {
+  font-size: 7.5pt;
+  color: #444;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * 校正用の目盛り。**縮めてはならない。**
+ * flex の子は既定で縮むので flex: none を明示する。ここが 50mm でなくなると、
+ * 縮小印刷を検知するための基準そのものが狂う。
+ */
 .specimen-ruler {
   display: block;
+  flex: none;
   width: 50mm;
   height: 3.5mm;
   border: 0.75pt solid #000;

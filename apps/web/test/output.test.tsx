@@ -14,11 +14,12 @@
 import { analyze, type AnalysisResult } from "@mnread/core";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { App } from "../src/App.js";
 import { CPS_METHOD_LABEL } from "../src/labels.js";
 import { buildEmrText } from "../src/output/emrText.js";
+import { sampleRequested } from "../src/sample/sampleSession.js";
 import {
   buildExportCsv,
   buildExportJson,
@@ -279,6 +280,11 @@ describe("A4 患者・支援者向けレポート", () => {
     expect(screen.getByTestId("support-range")).toHaveTextContent("30 cm で読むとき");
   });
 
+  it("通常の紙面に透かしを重ねない", async () => {
+    await openOutput();
+    expect(screen.queryByTestId("report-watermark")).toBeNull();
+  });
+
   it("新聞の文字に対する倍率は患者向けの紙に載せない", async () => {
     // 現場での説明に合わないため落とした（視能訓練士レビュー 2026-08）。
     // M値は電子カルテ用テキストと書き出しには残る。
@@ -405,5 +411,38 @@ describe("出力画面", () => {
     expect(textarea.value).toContain("■ MNREAD-J 読書評価");
     expect(textarea.value).toContain("1.40 logMAR ＝ SDev法 v1（自動）");
     expect(textarea).toHaveAttribute("readonly");
+  });
+});
+
+/* ============================================================
+   見本の紙面（開発ビルドのみ）
+   ============================================================ */
+
+describe("見本の紙面", () => {
+  afterEach(() => {
+    window.history.replaceState(null, "", "/");
+  });
+
+  /*
+   * 合成データと透かしは同じスイッチから出す。別々に切り替えられると、
+   * 透かしのない見本や、透かしの付いた実検査を作れてしまう。
+   */
+  it("?sample で合成データと透かしが同時に出る", async () => {
+    window.history.replaceState(null, "", "/?sample");
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByTestId("tab-output"));
+
+    expect(screen.getByTestId("report-watermark")).toHaveTextContent("SAMPLE");
+    expect(screen.getByTestId("report-meta")).toHaveTextContent("SAMPLE");
+    // 20cm 測定なので、併記の段組（紙面でいちばん混む形）が見本に写る
+    expect(screen.getByTestId("zone-table")).toHaveTextContent("20 cm で読むとき");
+    expect(screen.getByTestId("zone-table")).toHaveTextContent("30 cm で読むとき");
+  });
+
+  it("パラメータが無ければ見本にならない", () => {
+    expect(sampleRequested("")).toBe(false);
+    expect(sampleRequested("?other=1")).toBe(false);
+    expect(sampleRequested("?sample")).toBe(true);
   });
 });
