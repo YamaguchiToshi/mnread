@@ -4,7 +4,7 @@
  *   - `enterWorkedExample()` — 検者と同じ打鍵で画面に入力する
  *   - `workedExampleSession()` — core に直接渡せる SessionInput
  *
- * 出典: oda.lab/MNREAD-J-JkMan020518.pdf 図2（p.6）、§4.0〜§4.5（pp.8-9）
+ * 出典: references/MNREAD-J-JkMan020518.pdf 図2（p.6）、§4.0〜§4.5（pp.8-9）
  * 患者HK、31歳、両眼、15cm、MNREAD-J1-1。1.3 から 0.6 まで読み、0.5 で不読。
  */
 

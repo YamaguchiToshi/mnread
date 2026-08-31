@@ -11,10 +11,10 @@ coverage/
 *.patient.csv
 /exports/
 
-# 一次資料PDFは小田研究室（東京女子大学）の著作物であり、本リポジトリでは
-# 再配布しない。入手先と、本リポジトリが原典から何を取り込んだかは
-# oda.lab/README.md を参照。必要な数値は packages/fixtures に転記済み。
-oda.lab/*.pdf
+# 文献PDFは本リポジトリで再配布しない（一次資料は小田研究室（東京女子大学）の
+# 著作物）。入手先と、本リポジトリが原典から何を取り込んだかは
+# references/README.md を参照。必要な数値は packages/fixtures に転記済み。
+references/*.pdf
 
 # ルート直下に置いた紙面の写し・スクリーンショット。
 # 原典の測定例から作った紙面は、原典 PDF を再配布しないのと同じ線で扱う
