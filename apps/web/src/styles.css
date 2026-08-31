@@ -16,6 +16,36 @@
  * 末尾に A4 レポート用の @media print がある。
  */
 
+/*
+ * 実物大見本のためだけに同梱する書体（`読` 1文字、1KB）。
+ *
+ * 見本は体裁ではなく計測器である。紙の上で「これが N pt の大きさです」と
+ * 言い切っているので、刷る機械で大きさが変わってはならない。`pt` が定める
+ * 全角ボディ（em）は書体によらず同じだが、刷られる墨の高さ（字面）は書体ごとに
+ * 違う（ヒラギノ明朝 ProN W3 の「読」= 0.913 em、この書体は 0.918 em。
+ * SPEC §5.7 の注記）。フォールバック任せだと Mac と Windows で違う大きさの
+ * 見本を刷ることになる。レポートの他の文字は環境のフォントでよい——物理量を
+ * 主張していないため。
+ *
+ * Noto Serif JP のサブセット（SIL OFL 1.1）。生成は
+ * `apps/web/scripts/build-specimen-font.py`、全文は `public/OFL-NotoSerifJP.txt`。
+ * バンドルに同梱するので外部リクエストは増えない（ADR-0017 / CSP は
+ * `default-src 'self'` のまま）。
+ */
+@font-face {
+  font-family: "MNREAD Report Mincho";
+  src: url("./assets/mnread-report-mincho.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  /*
+   * `block`。読み込み前に別の書体で描かれると、一瞬とはいえ大きさの違う見本が
+   * 出る。同一オリジンの 1KB なので待ちは実質ゼロで、保証できない大きさを
+   * 描かないほうを取る（読めなければ3秒後にフォールバックへ落ちる）。
+   */
+  font-display: block;
+  unicode-range: U+8AAD;
+}
+
 :root {
   /* ---- 紙と墨 ---- */
   --paper: #f6f7f9;
@@ -1867,9 +1897,13 @@ kbd {
   color: #000;
 }
 
-/* チャートと同じ明朝で刷る。測ったときの字がそのまま見本になる */
+/*
+ * 同梱した明朝で刷る（上の @font-face を参照）。ここだけは環境のフォントに
+ * 委ねない。後ろのフォールバックは、同梱書体が読めなかったときに字が消えない
+ * ようにするためだけのもの。
+ */
 .specimen-text {
-  font-family: var(--font-mincho);
+  font-family: "MNREAD Report Mincho", var(--font-mincho);
   line-height: 1;
   color: #000;
 }
