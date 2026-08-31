@@ -11,7 +11,7 @@
  */
 
 /** SPEC.md の版。解析結果に必ず含める。 */
-export const SPEC_VERSION = "0.6.2";
+export const SPEC_VERSION = "0.6.3";
 
 /** 算出結果が変わりうる変更で必ず上げる（SPEC §10）。 */
 export const ALGORITHM_VERSION = "0.5.0";

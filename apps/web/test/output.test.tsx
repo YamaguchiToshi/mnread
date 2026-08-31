@@ -93,7 +93,7 @@ describe("電子カルテ用テキスト", () => {
   });
 
   it("仕様版とアルゴリズム版を必ず添える（SPEC §10）", () => {
-    expect(text).toContain("仕様 0.6.2 / アルゴリズム 0.5.0");
+    expect(text).toContain("仕様 0.6.3 / アルゴリズム 0.5.0");
   });
 
   it("上書きした判定は理由つきで残る（SPEC §8.4）", () => {
@@ -175,7 +175,7 @@ describe("生データ書き出し", () => {
       specVersion: string;
       result: AnalysisResult;
     };
-    expect(parsed.specVersion).toBe("0.6.2");
+    expect(parsed.specVersion).toBe("0.6.3");
     // 表示は 1.10 だが、書き出しは倍精度のまま出る（ADR-0003）
     expect(parsed.result.readingAcuity!.raCorrectedLogMAR).toBeCloseTo(
       1.0976966623306477,
