@@ -5,7 +5,7 @@
     "title": "MNREAD-J Q&A",
     "authors": "小田浩一, 歓喜仁美, 川嶋英嗣, 田中恵津子",
     "locator": "A4.3",
-    "file": "oda.lab/odalab web resource center.pdf",
+    "file": "references/odalab web resource center.pdf",
     "url": "https://www.cis.twcu.ac.jp/~k-oda/MNREAD-J/MNREADJ-QandA.html"
   },
   "description": "logMAR からポイントサイズへの公式換算表。標準測定距離 30cm。原典は Excel 式 =TAN(10^A1*5/60*PI()/180)*1908 を併記しており、表の値は9桁で示されている。",

@@ -6,7 +6,7 @@
     "author": "小田浩一",
     "version": "2002-05-18",
     "locator": "表B（p.10）",
-    "file": "oda.lab/MNREAD-J-JkMan020518.pdf"
+    "file": "references/MNREAD-J-JkMan020518.pdf"
   },
   "description": "logMAR と小数視力の換算表。原典 §3.6 の式は 小数視力 = 1 ÷ 10^logMAR。",
   "formula": "decimalAcuity = 10^(-L)",

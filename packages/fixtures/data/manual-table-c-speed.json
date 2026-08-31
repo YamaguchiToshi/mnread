@@ -6,7 +6,7 @@
     "author": "小田浩一",
     "version": "2002-05-18",
     "locator": "表C（p.10）",
-    "file": "oda.lab/MNREAD-J-JkMan020518.pdf"
+    "file": "references/MNREAD-J-JkMan020518.pdf"
   },
   "description": "読書時間（秒）と読書速度（文字／分）の換算表。読み誤りが全くなかった場合の値。",
   "formulae": {

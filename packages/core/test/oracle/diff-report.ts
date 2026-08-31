@@ -6,7 +6,7 @@
  * SPEC §5.5.2 が Phase 5 に送った「`mnreadR` 2.1.7 との実際の差異」を測る。
  * **一致を目標にしない。** mnreadR は照合対象であって裁定者ではない
  * （ADR-0014）。ここが出すのは差異の所在と大きさであり、どちらが正しいかは
- * `oda.lab/` に照らして `docs/mnreadr-comparison.md` で裁定する。
+ * `references/` に照らして `docs/mnreadr-comparison.md` で裁定する。
  *
  * 両者には `buildCurve()` の同一出力を渡す。入力の差ではなくアルゴリズムの差
  * だけを見るためで、0 cpm の除去のようにオラクル側の前処理に属するものは

@@ -12,12 +12,12 @@ Fully client-side and offline-capable. **No patient data leaves the browser, and
 
 Read these before changing anything that affects a computed value:
 
-- **`oda.lab/`** — the primary sources, as PDFs: the official 2002 Oda manual (`MNREAD-J-JkMan020518.pdf`) and the Oda lab Q&A (`odalab web resource center.pdf`). **These are the final authority on every formula.** Reading them requires poppler (`brew install poppler`); the Read tool renders pages visually, which is necessary because the formulae, tables, and the worked-example scoresheet are laid out graphically.
-- **`SPEC.md`** — the single source of truth for the implementation: formulae, item states, validation rules, output schema, rounding policy. Carries `SPEC_VERSION`. Every formula cites its manual/Q&A locator. **If the implementation disagrees with SPEC.md, SPEC.md is right** — change it first, deliberately, then the code. If SPEC.md disagrees with `oda.lab/`, the primary source is right.
+- **`references/`** — the literature, as PDFs. Its first section holds the primary sources: the official 2002 Oda manual (`MNREAD-J-JkMan020518.pdf`) and the Oda lab Q&A (`odalab web resource center.pdf`). **These two are the final authority on every formula.** Anything else in the directory is reference material and settles nothing about a formula (see `references/README.md`). Reading them requires poppler (`brew install poppler`); the Read tool renders pages visually, which is necessary because the formulae, tables, and the worked-example scoresheet are laid out graphically.
+- **`SPEC.md`** — the single source of truth for the implementation: formulae, item states, validation rules, output schema, rounding policy. Carries `SPEC_VERSION`. Every formula cites its manual/Q&A locator. **If the implementation disagrees with SPEC.md, SPEC.md is right** — change it first, deliberately, then the code. If SPEC.md disagrees with `references/`, the primary source is right.
 - **`docs/adr/`** — 18 decisions with their reasoning (ADR-0009 is superseded by ADR-0011). Consult these before "fixing" something that looks wrong; several apparent oddities are deliberate.
 - **`PLAN.md`** — phased implementation and verification plan.
 - `README.md` — the human entry point: what the tool is, what has been built, how it is verified, what remains. **Not a source of truth** — it summarises and links. It quotes a few figures (test counts, the synthetic 498/527/0, the fixture tolerances); if you change something that moves them, move them there too.
-- `deep-research-report-1.md` / `-2.md` — secondary research summaries (Japanese: computation; English: validation). Useful for the automated-CPS literature, which the primary sources don't cover. **Do not resolve a formula question from these** — go to `oda.lab/`. Their `citeturnNNviewN` markers are research-tool artifacts.
+- `deep-research-report-1.md` / `-2.md` — secondary research summaries (Japanese: computation; English: validation). Useful for the automated-CPS literature, which the primary sources don't cover. **Do not resolve a formula question from these** — go to `references/`. Their `citeturnNNviewN` markers are research-tool artifacts.
 
 Do not restate SPEC.md's formulae in other files. A second copy will drift.
 
@@ -40,7 +40,7 @@ Node 22+, pnpm workspace. `packages/core` is consumed as TypeScript source (no b
 ## Layout
 
 ```
-oda.lab/             一次資料PDF（公式マニュアル・Q&A）
+references/          文献PDF（一次資料＝公式マニュアル・Q&A、参考文献）
 packages/core/       純粋TS。DOM・日付・乱数・ロケール非依存。全関数が純粋関数
   src/types.ts         SPEC.md の契約をコードで表現したもの
   src/variants.ts      チャート定数・換算定数

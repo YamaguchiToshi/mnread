@@ -6,7 +6,7 @@
     "author": "小田浩一",
     "version": "2002-05-18",
     "locator": "表A（p.10）",
-    "file": "oda.lab/MNREAD-J-JkMan020518.pdf"
+    "file": "references/MNREAD-J-JkMan020518.pdf"
   },
   "description": "30cm の標準測定距離以外で測定した場合の補正値。原典に式が併記されている。M 補正は乗数であり、logMAR 補正と等価。",
   "formulae": {

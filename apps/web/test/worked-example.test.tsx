@@ -8,7 +8,7 @@
  * ここで見たいのは「入力UIを通しても同じ値に着地するか」——つまり打鍵の途中で
  * 値が落ちたり、状態が取り違えられたりしないかである。
  *
- * 出典: oda.lab/MNREAD-J-JkMan020518.pdf 図2（p.6）、§4.0〜§4.5（pp.8-9）
+ * 出典: references/MNREAD-J-JkMan020518.pdf 図2（p.6）、§4.0〜§4.5（pp.8-9）
  */
 
 import { render, screen } from "@testing-library/react";

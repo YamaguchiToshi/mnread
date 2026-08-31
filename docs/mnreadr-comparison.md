@@ -295,3 +295,63 @@ seed=262327 は再び無警告に戻る。副作用として原典 §4 の測定
 - **3件とも 2026-08-01 に処理した。** F-1 → ADR-0015（OPEN-9 解決）、E-1 → ADR-0016
   （OPEN-8 解決）。D 類の既知の差異（探索の構造・`gradual_transition`・`sparse`・最小点数）は
   記録として残る。次に見直す材料は、合成曲線ではなく Phase 5 の実測20〜30例である。
+
+---
+
+## 追記（2026-08-31）: 照合対象の射程 — iPad 版アプリも同じアルゴリズムだった
+
+Calabrèse et al. (2018), *Comparing performance on the MNREAD iPad application with the MNREAD
+acuity chart*, Journal of Vision 18(1):8（`references/i1534-7362-18-1-8.pdf`）が、"MNREAD parameters
+estimation"（p.4–5）で次を明記している。
+
+> Both methods used the same calculations: MRS and CPS were estimated using the original
+> algorithm described in Legge (2007) …
+
+紙のチャートのデータは `mnreadR` で、iPad はアプリ内でリアルタイムに解析され、**両者は同じ計算**。
+つまり **iPad 版アプリの自動推定 = `mnreadR` = Legge 2007 法**であり、本ドキュメントの照合対象
+（`packages/core/test/oracle/mansfield.ts`）は、そのまま iPad 版アプリの照合でもある。
+
+**裁定は1件も変わらない。** A〜E の分類は原典マニュアルと Legge 2007 法の突き合わせであって、
+その法をどの製品が積んでいるかには依存しない。変わるのは照合対象の位置づけだけである —
+比較していた相手は R パッケージ1本ではなく、英語圏で現に臨床運用されている実装だった。
+ADR-0014（**照合対象であって裁定者ではない**）はそのまま維持する。日本語版マニュアルが自分で
+書いた値から離れる変更は、相手が iPad 版アプリでも採らない。
+
+### この論文が Phase 5 に与える外部の目安
+
+**1. 自動推定は目視で覆される前提で運用されている。** 論文自身が、アルゴリズムの推定を目視検査で
+「誤り」と判定した割合を報告している。
+
+| | 紙チャート（mnreadR）| iPad アプリ |
+|---|---|---|
+| 実験1・正常視（N=165）| 4% | 2% |
+| 実験2・ロービジョン（N=43）| **11%** | **9%** |
+
+アプリ側にも手動上書きの経路がある（"the examiner had the option to override the automatic fit
+and perform a manual estimation"）。本アプリの構成と同じである — 主値は視能訓練士の目視
+（ADR-0006）、自動推定は併記、上書きに理由を付す。
+
+当院の対象はロービジョン寄りなので、**目安になるのは 9〜11% の側**。`requiresReview` の発火率が
+これを大きく下回るなら、閾値が緩すぎることを疑う材料になる（OPEN-6 / OPEN-7 の較正時に使う）。
+
+**2. 目視で覆すときの規則が、こちらの判定モデルと同じ。**
+
+> MRS was estimated as the plateau of the curve, and CPS was set as the last print size
+> sustaining MRS.
+
+MRS も CPS もプラトー点集合 `P` の関数である。ADR-0012（判定 UI の入力は `P` ただ一つ、CPS 線に
+独立のハンドルを与えない）を外から裏づける。
+
+**3. グラフは log 読書速度 × 文字サイズ。** アプリの結果画面も "the corresponding MNREAD curve of
+log reading speed as a function of print size"。ADR-0011 と同じ空間である。
+
+### 持ち込まないもの
+
+論文は英語版 MNREAD の測定であり、定数はすべて英語版のもの（wpm、40cm 基準、ACC の 18–39 歳
+基準値 1.0）。ADR-0001 / ADR-0008 の線はそのまま。とくに、iPad の ACC を紙に合わせるための
+**係数 1.1（"a multiplicative factor of 1.1"）は日本語版とは無関係**であり、持ち込まない。
+
+もう一点、将来のために記録しておく。論文は MRS の紙・iPad 差（速い読者ほど大きく、250 wpm で 12%）を
+**計時方法の差**に帰している — ストップウォッチ計時は開始が遅れるぶん読書時間を過小に、速度を過大に
+出す。本アプリが受け取るのは紙チャート＋ストップウォッチの計時なので、デジタル計時の値と本アプリの
+値を直接比べる場面が来たら、この偏りを差し引く必要がある。**現時点で修正すべき箇所はない。**

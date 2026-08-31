@@ -1,7 +1,7 @@
 /**
  * @mnread/fixtures — 一次資料から転記したゴールデンデータ
  *
- * すべての値は `oda.lab/` の原典（公式マニュアルおよび Q&A）に由来する。
+ * すべての値は `references/` の原典（公式マニュアルおよび Q&A）に由来する。
  * 転記の健全性は `verify-transcription.mjs` が独立の参照式で検証する
  * （`pnpm --filter @mnread/fixtures verify`）。
  *
