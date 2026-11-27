@@ -12,7 +12,7 @@
  */
 
 import { analyze, type AnalysisResult } from "@mnread/core";
-import { render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -93,7 +93,7 @@ describe("電子カルテ用テキスト", () => {
   });
 
   it("仕様版とアルゴリズム版を必ず添える（SPEC §10）", () => {
-    expect(text).toContain("仕様 0.6.3 / アルゴリズム 0.5.0");
+    expect(text).toContain("仕様 0.6.4 / アルゴリズム 0.5.0");
   });
 
   it("上書きした判定は理由つきで残る（SPEC §8.4）", () => {
@@ -175,7 +175,7 @@ describe("生データ書き出し", () => {
       specVersion: string;
       result: AnalysisResult;
     };
-    expect(parsed.specVersion).toBe("0.6.3");
+    expect(parsed.specVersion).toBe("0.6.4");
     // 表示は 1.10 だが、書き出しは倍精度のまま出る（ADR-0003）
     expect(parsed.result.readingAcuity!.raCorrectedLogMAR).toBeCloseTo(
       1.0976966623306477,
@@ -302,6 +302,37 @@ describe("A4 患者・支援者向けレポート", () => {
     expect(support).toHaveTextContent("1.26 倍");
     // ゾーンの表とは別の区画である
     expect(within(support).queryByTestId("zone-table")).toBeNull();
+  });
+
+  /*
+   * 見本の文字はチャートの文字種に合わせる（SPEC §8.2.2、視能訓練士レビュー
+   * 2026-11-27）。Jk の読み材料はひらがなで、漢字の見本では種類が合わない。
+   * 大きさは文字によらず em で決まる——文字を替えても pt の指定は変わらない。
+   */
+  it("見本の文字は MNREAD-J では「読」、MNREAD-Jk では「あ」", async () => {
+    // 同じ記録を両方のチャートで打つ。測定例は誤り 29 の行があり Jk（24字）では
+    // 入力エラーになるため、誤り 0 の曲線を使う。
+    const specimenFor = async (variant: "MNREAD-J" | "MNREAD-Jk") => {
+      const user = userEvent.setup();
+      render(<App />);
+      await user.selectOptions(screen.getByLabelText("チャート"), variant);
+      await enterCleanTwoLimb(user);
+      await user.click(screen.getByTestId("tab-output"));
+      const glyphs = [
+        ...screen.getByTestId("specimen").querySelectorAll<HTMLElement>(".specimen-text"),
+      ].map((el) => ({ char: el.textContent, size: el.style.fontSize }));
+      cleanup();
+      return glyphs;
+    };
+
+    const j = await specimenFor("MNREAD-J");
+    const jk = await specimenFor("MNREAD-Jk");
+
+    expect(j.map((g) => g.char)).toEqual(["読", "読"]);
+    expect(jk.map((g) => g.char)).toEqual(["あ", "あ"]);
+    // 同じ記録なので推奨サイズは同じ。文字を替えても倍率は掛けない（SPEC §5.7）
+    expect(jk.map((g) => g.size)).toEqual(j.map((g) => g.size));
+    expect(j[0]!.size).toMatch(/pt$/);
   });
 
   it("CPS の算出法をレポート本文に残す", async () => {

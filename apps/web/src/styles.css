@@ -17,7 +17,8 @@
  */
 
 /*
- * 実物大見本のためだけに同梱する書体（`読` 1文字、1KB）。
+ * 実物大見本のためだけに同梱する書体（MNREAD-J の `読` と MNREAD-Jk の `あ` の2文字。
+ * 文字の対応表は `src/output/specimen.ts`）。
  *
  * 見本は体裁ではなく計測器である。紙の上で「これが N pt の大きさです」と
  * 言い切っているので、刷る機械で大きさが変わってはならない。`pt` が定める
@@ -43,7 +44,8 @@
    * 描かないほうを取る（読めなければ3秒後にフォールバックへ落ちる）。
    */
   font-display: block;
-  unicode-range: U+8AAD;
+  /* 読 あ。見本の文字を足したら、ここと build-specimen-font.py の SPECIMEN_CHARS を両方直す */
+  unicode-range: U+8AAD, U+3042;
 }
 
 :root {

@@ -18,6 +18,8 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
+import { SPECIMEN_CHAR } from "../src/output/specimen.js";
+
 /** 配信されるファイルそのものを読む（vitest は CSS の取り込みを空にするため fs で読む）。 */
 const at = (path: string): string => fileURLToPath(new URL(path, import.meta.url));
 const css = readFileSync(at("../src/styles.css"), "utf8");
@@ -49,13 +51,19 @@ describe("実物大見本の書体（ADR-0018）", () => {
     expect(rule?.[0]).toMatch(new RegExp(`font-family:\\s*"${FAMILY}"\\s*,`));
   });
 
-  it("見本の文字が同梱書体の unicode-range に入っている", () => {
+  it("見本に使う文字がすべて同梱書体の unicode-range に入っている", () => {
     // ここが食い違うと、字はフォールバックで出て大きさだけ変わる。
+    // チャート種別ごとの文字（SPEC §8.2.2）を表から取るので、種別や文字を
+    // 足したときに書体の作り直しを忘れればここで落ちる。
     const declared = fontFace.find((block) => block.includes(`"${FAMILY}"`)) ?? "";
     const ranges = [...declared.matchAll(/U\+([0-9a-fA-F]+)/g)].map((m) =>
       Number.parseInt(m[1]!, 16),
     );
-    expect(ranges).toContain("読".codePointAt(0));
+    const chars = Object.values(SPECIMEN_CHAR);
+    expect(chars).toEqual(["読", "あ"]);
+    for (const char of chars) {
+      expect(ranges).toContain(char.codePointAt(0));
+    }
   });
 
   it("書体ファイルとライセンス全文が配布物に入っている", () => {
@@ -64,7 +72,7 @@ describe("実物大見本の書体（ADR-0018）", () => {
       "SIL OPEN FONT LICENSE",
     );
 
-    // 1文字のサブセットであること。全部入りを取り込むと数MBがバンドルに乗る。
+    // 見本の文字だけのサブセットであること。全部入りを取り込むと数MBがバンドルに乗る。
     const font = readFileSync(at("../src/assets/mnread-report-mincho.woff2"));
     expect(font.byteLength).toBeGreaterThan(0);
     expect(font.byteLength).toBeLessThan(20 * 1024);
