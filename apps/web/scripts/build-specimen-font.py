@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""A4レポートの実物大見本に使う書体を作る（1グリフのサブセット）。
+"""A4レポートの実物大見本に使う書体を作る（見本の文字だけのサブセット）。
 
 なぜ同梱するのか
 ----------------
@@ -39,8 +39,9 @@ from fontTools.ttLib import TTFont
 from fontTools.varLib import instancer
 from fontTools.subset import Subsetter
 
-# 見本に使う文字。増やすときはここと styles.css のコメントを両方直す。
-SPECIMEN_CHARS = "読"
+# 見本に使う文字。MNREAD-J は「読」、MNREAD-Jk は「あ」（src/output/specimen.ts）。
+# 増やすときはここと styles.css の unicode-range を両方直す。
+SPECIMEN_CHARS = "読あ"
 
 SOURCE_URL = (
     "https://raw.githubusercontent.com/google/fonts/main/ofl/notoserifjp/"

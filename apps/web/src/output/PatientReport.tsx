@@ -37,6 +37,7 @@ import {
   ZONE_SHORT,
 } from "../labels.js";
 import type { RowView } from "../session/derive.js";
+import { SPECIMEN_CHAR } from "./specimen.js";
 
 export interface PatientReportProps {
   readonly result: AnalysisResult;
@@ -63,6 +64,8 @@ export function PatientReport({
   const zones = result.zones;
   const support = result.supportRange;
   const selected = result.cps.find((e) => e.method === result.selection.cpsMethod);
+  // 見本の文字はチャートの文字種に合わせる（SPEC §8.2.2）。大きさは文字によらない
+  const specimenChar = SPECIMEN_CHAR[input.variant];
 
   return (
     <article className="report" data-testid="patient-report">
@@ -313,7 +316,7 @@ export function PatientReport({
                   style={{ fontSize: `${String(support.lowerPoint)}pt` }}
                   aria-hidden="true"
                 >
-                  読
+                  {specimenChar}
                 </span>
               </span>
               <span className="specimen-item">
@@ -326,7 +329,7 @@ export function PatientReport({
                   style={{ fontSize: `${String(support.upperPoint)}pt` }}
                   aria-hidden="true"
                 >
-                  読
+                  {specimenChar}
                 </span>
               </span>
             </div>
