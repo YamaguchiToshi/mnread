@@ -26,6 +26,7 @@
  */
 
 import {
+  useLayoutEffect,
   useRef,
   useState,
   type JSX,
@@ -35,6 +36,8 @@ import {
 
 import { formatCpm, formatLogMAR } from "../format.js";
 import type { RowView } from "../session/derive.js";
+
+import { placeMrsLabel, type Box, type LabelSize } from "./labelPlacement.js";
 
 const WIDTH = 640;
 const HEIGHT = 400;
@@ -93,6 +96,25 @@ interface PlottedRow {
   readonly rowIndex: number;
   readonly logMAR: number;
   readonly speedCpm: number;
+}
+
+function sameSize(a: LabelSize | null, b: LabelSize | null): boolean {
+  if (a === null || b === null) return a === b;
+  return (
+    Math.abs(a.width - b.width) < 0.5 &&
+    Math.abs(a.ascent - b.ascent) < 0.5 &&
+    Math.abs(a.descent - b.descent) < 0.5
+  );
+}
+
+function sameBox(a: Box | null, b: Box | null): boolean {
+  if (a === null || b === null) return a === b;
+  return (
+    Math.abs(a.x1 - b.x1) < 0.5 &&
+    Math.abs(a.y1 - b.y1) < 0.5 &&
+    Math.abs(a.x2 - b.x2) < 0.5 &&
+    Math.abs(a.y2 - b.y2) < 0.5
+  );
 }
 
 /** 凡例の印。図中の点と同じクラスで描き、見た目がずれないようにする。 */
@@ -194,6 +216,9 @@ export function SpeedCurve({
   const plateauSet = new Set(overlay?.plateauRows ?? []);
   const excludedSet = new Set(overlay?.excludedRows ?? []);
   const plateauPoints = plotted.filter((p) => plateauSet.has(p.rowIndex));
+  /** 点の半径。札がどの点を避けるかの計算にも同じ値を使う。 */
+  const pointRadius = (rowIndex: number): number =>
+    rowIndex === focusedRowIndex ? 6 : plateauSet.has(rowIndex) ? 7 : 4;
   const cpsX =
     overlay?.cpsCorrectedLogMAR === null || overlay?.cpsCorrectedLogMAR === undefined
       ? null
@@ -262,14 +287,90 @@ export function SpeedCurve({
   /** 右寄りの線のラベルは内側（左）へ出す。描画域からはみ出させない。 */
   const labelOnLeft = (x: number): boolean => x > MARGIN.left + PLOT_WIDTH * 0.6;
 
-  /**
-   * MRS の札を、プラトー区間のどちら端から書き出すか。
+  /*
+   * MRS の札の位置（labelPlacement.ts）。
    *
-   * 文字幅で位置を決めると、A4 レポートで図中の字を拡大した瞬間に破綻する
-   * （中央寄せ＋固定の余白では、拡大した札が右端からはみ出した）。
-   * 「区間の内側に向かって伸ばす」なら字の大きさに依存しない。
+   * 札は区間の端から内側へ伸ばす。どちらの端からか、線の上か下かを、ブラウザが
+   * 実際に描いた札の寸法を使って、点・折れ線・CPS の線と札に重ならないように
+   * 選ぶ。寸法は SVG の座標系の値なので、図の拡大縮小や印刷倍率に左右されない。
+   * レポートの2段組みで図中の字を拡大しても、測り直した寸法で選び直す。
    */
-  const mrsLabelAtRightEnd = mrsSpan !== null && labelOnLeft(mrsSpan.x1);
+  const mrsLabelRef = useRef<SVGTextElement | null>(null);
+  const cpsLabelRef = useRef<SVGTextElement | null>(null);
+  const [labelBoxes, setLabelBoxes] = useState<{
+    readonly mrs: LabelSize | null;
+    readonly cps: Box | null;
+  }>({ mrs: null, cps: null });
+
+  const mrsPlacement =
+    mrsY === null || mrsSpan === null
+      ? null
+      : placeMrsLabel(
+          {
+            lineY: mrsY,
+            spanX1: mrsSpan.x1,
+            spanX2: mrsSpan.x2,
+            plot: { x1: MARGIN.left, y1: MARGIN.top, x2: MARGIN.left + PLOT_WIDTH, y2: logBottom },
+            inward: labelOnLeft(mrsSpan.x1) ? "end" : "start",
+            points: plotted.map((p) => ({
+              x: toX(p.logMAR),
+              y: toY(p.speedCpm),
+              r: pointRadius(p.rowIndex),
+            })),
+            segments: positives.slice(1).map((p, i) => ({
+              x1: toX(positives[i]!.logMAR),
+              y1: toY(positives[i]!.speedCpm),
+              x2: toX(p.logMAR),
+              y2: toY(p.speedCpm),
+            })),
+            cpsX,
+            cpsLabel: cpsX === null ? null : labelBoxes.cps,
+          },
+          labelBoxes.mrs,
+        );
+
+  /*
+   * 描いた札を測る。描画の直後・表示の前に走るので、測り直して置き直しても
+   * ちらつかない。値が変わったときだけ状態を更新する（同じ値で更新し続けない）。
+   * 書体の読み込みが遅れて字幅が変わる場合に備え、読み込み完了でも測り直す。
+   */
+  const [, setFontEpoch] = useState(0);
+  useLayoutEffect(() => {
+    const fonts = typeof document === "undefined" ? undefined : document.fonts;
+    if (fonts === undefined) return;
+    let live = true;
+    void fonts.ready.then(() => {
+      if (live) setFontEpoch((n) => n + 1);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+  useLayoutEffect(() => {
+    const measure = (el: SVGTextElement | null): DOMRect | null => {
+      if (el === null || typeof el.getBBox !== "function") return null;
+      const box = el.getBBox();
+      return box.width > 0 ? box : null;
+    };
+    const mrsBox = measure(mrsLabelRef.current);
+    const baseline = Number(mrsLabelRef.current?.getAttribute("y"));
+    const mrs: LabelSize | null =
+      mrsBox === null || !Number.isFinite(baseline)
+        ? null
+        : {
+            width: mrsBox.width,
+            ascent: baseline - mrsBox.y,
+            descent: mrsBox.y + mrsBox.height - baseline,
+          };
+    const cpsBox = measure(cpsLabelRef.current);
+    const cps: Box | null =
+      cpsBox === null
+        ? null
+        : { x1: cpsBox.x, y1: cpsBox.y, x2: cpsBox.x + cpsBox.width, y2: cpsBox.y + cpsBox.height };
+    setLabelBoxes((prev) =>
+      sameSize(prev.mrs, mrs) && sameBox(prev.cps, cps) ? prev : { mrs, cps },
+    );
+  });
 
   return (
     <figure className="curve">
@@ -410,21 +511,21 @@ export function SpeedCurve({
           判定線のラベル。プラトーは図の右端に寄ることが多く、線の右へ素直に
           置くと文字が描画域からはみ出す。線の位置に応じて内側へ寄せる。
 
-          MRS の札は線の**下**、プラトー区間の中央に置く。以前は線の左端の上に
-          出していたが、プラトーが右上に寄る典型例では CPS の札とちょうど
-          重なって両方読めなくなっていた。上（CPS）と下（MRS）に分ければ、
-          プラトーがどこにあっても衝突しない。
+          MRS の札は線に寄り添わせ、点・折れ線・CPS の線と札をできるだけ
+          避ける（mrsPlacement、labelPlacement.ts）。
         */}
 
         {/* MRS の水平線。プラトーの範囲にのみ引く */}
-        {mrsY !== null && mrsSpan !== null && (
+        {mrsY !== null && mrsSpan !== null && mrsPlacement !== null && (
           <g data-testid="mrs-line" data-cpm={overlay?.mrsCpm ?? undefined}>
             <line className="mrs-line" x1={mrsSpan.x1} x2={mrsSpan.x2} y1={mrsY} y2={mrsY} />
             <text
+              ref={mrsLabelRef}
               className="overlay-label overlay-label-mrs"
-              x={mrsLabelAtRightEnd ? mrsSpan.x2 : mrsSpan.x1}
-              y={mrsY + 25}
-              textAnchor={mrsLabelAtRightEnd ? "end" : "start"}
+              x={mrsPlacement.x}
+              y={mrsPlacement.y}
+              textAnchor={mrsPlacement.anchor}
+              data-testid="mrs-label"
             >
               MRS {formatCpm(overlay?.mrsCpm ?? null)} cpm
             </text>
@@ -440,6 +541,7 @@ export function SpeedCurve({
           >
             <line className="cps-line" x1={cpsX} x2={cpsX} y1={MARGIN.top} y2={logBottom} />
             <text
+              ref={cpsLabelRef}
               className="overlay-label"
               x={labelOnLeft(cpsX) ? cpsX - 4 : cpsX + 4}
               y={MARGIN.top + 12}
@@ -504,7 +606,7 @@ export function SpeedCurve({
               className={classes.join(" ")}
               cx={toX(p.logMAR)}
               cy={toY(p.speedCpm)}
-              r={p.rowIndex === focusedRowIndex ? 6 : inPlateau ? 7 : 4}
+              r={pointRadius(p.rowIndex)}
               data-testid="curve-point"
               data-row-index={p.rowIndex}
               data-logmar={p.logMAR}
